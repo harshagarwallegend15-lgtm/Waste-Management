@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Server runtime
+.server.pid
+logs/
+*.log
+npm-debug.log*
+
+# Local temp output from test runs
+*.out
+*.err
+*.out.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

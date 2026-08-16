@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - name: Syntax check
+        run: |
+          for f in $(find server scripts tests -name '*.cjs'); do node --check "$f"; done
+          for f in $(find public/js -name '*.js'); do node --check "$f"; done
+      - name: Unit tests (CV matching — no external services)
+        run: npm run test:cv
+
+      # Integration tests (e2e, supplement, challenges) require a live Supabase
+      # project + running server, so they are not run in CI.

@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collector Dashboard — WasteWise</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+  <header class="site-header" id="site-header" data-page="dash" data-role="collector"></header>
+
+  <main class="dash">
+    <h2>Residents in your area</h2>
+    <p class="muted">Residents with a pending collection request appear first. Click a resident to visit, upload the after-collection photo, and get verified.</p>
+
+    <div class="section-title">
+      <span>📍 Residents (pending first)</span>
+      <button class="secondary" onclick="loadResidents()">↻ Refresh</button>
+    </div>
+
+    <div id="resident-list"><p class="muted">Loading…</p></div>
+
+    <!-- Working modal: resident detail -->
+    <section id="work" class="hidden grid grid-2" style="margin-top: 20px;">
+      <div class="card">
+        <h3 id="work-name">—</h3>
+        <p class="muted" id="work-address"></p>
+        <p class="pin" id="work-map"></p>
+        <hr style="border:none; border-top:1px solid var(--border); margin:14px 0;" />
+        <h4>Pending requests</h4>
+        <div id="work-requests"><p class="muted">No pending requests.</p></div>
+        <hr style="border:none; border-top:1px solid var(--border); margin:14px 0;" />
+        <p class="muted">Step 1 — reached the location (GPS check). Step 2 — upload the collection photo. Step 3 — the system verifies your photo against the resident's.</p>
+        <button id="work-arrived" class="secondary" style="margin-top: 10px;" onclick="markArrived()">📍 I'm at the location</button>
+      </div>
+      <div class="card" id="work-photo-card">
+        <h3>Upload collection photo</h3>
+        <p class="muted" style="margin-bottom:12px;">Capture the collected waste from the resident's doorstep.</p>
+        <div class="camera-box">
+          <video id="work-video" autoplay playsinline muted></video>
+          <img id="work-preview" class="hidden" alt="preview" />
+          <div class="camera-overlay">
+            <button type="button" id="work-capture" class="secondary">📷 Capture</button>
+            <button type="button" id="work-retake" class="secondary hidden">↺ Retake</button>
+            <button type="button" id="work-submit" class="hidden">Submit for verification</button>
+          </div>
+        </div>
+        <p class="hint" id="work-status">Click the resident on the left to start.</p>
+      </div>
+      <div class="card" id="work-result" style="grid-column: 1 / -1;"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer" id="site-footer"></footer>
+  <script src="/vendor/supabase.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/site.js"></script>
+  <script src="/js/camera.js"></script>
+  <script src="/js/gps.js"></script>
+  <script src="/js/realtime.js"></script>
+  <script src="/js/collector.js"></script>
+</body>
+</html>

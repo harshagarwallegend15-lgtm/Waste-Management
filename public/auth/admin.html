@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Municipality Admin — WasteWise</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body data-role="admin">
+  <header class="site-header" id="site-header" data-page="auth"></header>
+  <main class="auth-wrap">
+    <div class="auth-card">
+      <aside class="auth-hero">
+        <div class="auth-hero-icon">🏛️</div>
+        <h2>Municipality</h2>
+        <p>Oversee the whole city's collection network — monitor live activity, verify work, review reports and keep every ward accountable.</p>
+        <ul class="auth-hero-points">
+          <li>📊 Live city dashboard</li>
+          <li>✅ Verify collector work</li>
+          <li>📥 Review citizen reports</li>
+          <li>🧾 Manage areas &amp; societies</li>
+        </ul>
+        <div class="auth-hero-glow"></div>
+      </aside>
+      <div class="auth-panel">
+        <h3>Municipal access <span>🏛️</span></h3>
+        <div id="error" class="error-banner hidden"></div>
+
+        <!-- LOGIN -->
+        <form id="login-form" onsubmit="return doLogin(event)">
+          <div class="field">
+            <label>Email</label>
+            <div class="input-wrap">
+              <span class="input-icon">✉️</span>
+              <input type="email" id="login-email" placeholder="admin@example.com" required />
+            </div>
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <div class="input-wrap">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="login-password" placeholder="••••••••" required />
+              <button type="button" class="pw-toggle" onclick="togglePw('login-password', this)" aria-label="Toggle password visibility">👁</button>
+            </div>
+          </div>
+          <button type="submit" class="auth-submit">Login →</button>
+          <div class="demo-box">Demo: <code>admin@wastewise.app</code> / <code>Admin@123</code></div>
+        </form>
+        <p class="hint" style="margin-top: 14px;">Admin accounts are created by the municipality — no public signup.</p>
+      </div>
+    </div>
+    <p class="muted auth-back"><a href="/">← Back to role selection</a></p>
+  </main>
+  <footer class="site-footer" id="site-footer"></footer>
+  <script src="/js/api.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/site.js"></script>
+  <script src="/js/gps.js"></script>
+  <script src="/js/auth.js"></script>
+</body>
+</html>
