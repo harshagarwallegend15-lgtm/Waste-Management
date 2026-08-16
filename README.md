@@ -193,8 +193,23 @@ The integration tests (`test:e2e`, `test:supplement`) hit the live database conf
 
 ## Deployment
 
-WasteWise is a single Node/Express process that serves the static frontend and the `/api`.
-You can host it on Render, Railway, Fly.io, a VPS, or any Node 18+ platform.
+WasteWise is a Node/Express app that serves the static frontend and the `/api` — as a
+long-running process (`npm start`) or as a Vercel serverless function (`api/index.js`).
+Host it on Vercel, Render, Railway, Fly.io, a VPS, or any Node 18+ platform.
+
+### Vercel
+
+The repo ships a Vercel-ready serverless setup (`vercel.json` + `api/index.js`), so you do
+**not** need `npm start` or a build step:
+
+1. Import the repo on Vercel. It will deploy automatically — `vercel.json` rewrites every
+   request to the Node function, which serves the frontend and `/api`.
+2. Add the env vars in Project → Settings → Environment Variables (same set as below).
+3. Re-run `supabase/schema.sql` and `npm run seed` against the production project first.
+
+Vercel serverless functions cap request bodies at **~4.5 MB**, so phone photos larger than
+that will be rejected with 413 on Vercel. Camera captures (JPEG) are well under this;
+if you hit it, reduce `multer`'s `fileSize` limit in `server/routes/requests.cjs`.
 
 ### Render / Railway (recommended)
 

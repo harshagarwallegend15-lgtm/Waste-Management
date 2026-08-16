@@ -64,14 +64,25 @@ async function upsertProfile(id, profile) {
 async function main() {
   console.log('Seeding WasteWise...');
 
-  // Storage bucket (best-effort)
-  const { error: bErr } = await admin.storage.createBucket('waste-photos', {
-    public: false, file_size_limit: 8 * 1024 * 1024,
-  });
-  if (bErr) {
-    if (!/already exists/i.test(bErr.message)) console.warn('Bucket note:', bErr.message);
+  // Storage bucket (best-effort) — MUST be public: photo URLs are rendered in
+  // <img> tags by the frontend and stored on rows. Fixes an existing bucket too.
+  const { data: existingBucket } = await admin.storage.getBucket('waste-photos');
+  if (existingBucket) {
+    if (existingBucket.public !== true) {
+      await admin.storage.updateBucket('waste-photos', { public: true, file_size_limit: 8 * 1024 * 1024 });
+      console.log('Storage bucket waste-photos set to public');
+    } else {
+      console.log('Storage bucket waste-photos already public');
+    }
   } else {
-    console.log('Storage bucket waste-photos ready');
+    const { error: bErr } = await admin.storage.createBucket('waste-photos', {
+      public: true, file_size_limit: 8 * 1024 * 1024,
+    });
+    if (bErr) {
+      if (!/already exists/i.test(bErr.message)) console.warn('Bucket note:', bErr.message);
+    } else {
+      console.log('Storage bucket waste-photos ready');
+    }
   }
 
   // Areas

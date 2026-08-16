@@ -20,7 +20,7 @@ jobs:
       - run: npm ci
       - name: Syntax check
         run: |
-          for f in $(find server scripts tests -name '*.cjs'); do node --check "$f"; done
+          for f in $(find server scripts tests api -name '*.cjs' -o -name '*.js' | grep -v node_modules); do node --check "$f"; done
           for f in $(find public/js -name '*.js'); do node --check "$f"; done
       - name: Unit tests (CV matching — no external services)
         run: |
