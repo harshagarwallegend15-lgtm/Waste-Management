@@ -102,6 +102,24 @@ index.html (role selector)
    **points are awarded only on verified** (resident +20, collector +10, verified report +15).
    Admin overrides are also audited and only award points if not already awarded.
 
+## Garbage-photo gate (capture-time)
+
+Before any photo is accepted — **resident before-photo**, **collector after-photo**, and
+**dumping-report photo** — the server runs a "does this look like garbage?" check
+(`server/lib/garbage.cjs` → `classifyGarbage` in `cv.cjs`):
+
+- **Reject instantly** if the photo is empty/blank/plain (a wall, floor, document, empty
+  doorstep) — local heuristic on edge density, texture, foreground share and color diversity.
+- **Accept** if it is clearly a heterogeneous waste scene.
+- **Ambiguous middle band** → confirm with Groq vision when `GROQ_API_KEY` is set; if AI is
+  unconfigured or unreachable it accepts on the local score (fail-open so a vision outage
+  never blocks legitimate collections).
+- Thresholds: `GARBAGE_PHOTO_CHECK` (default on), `GARBAGE_LOCAL_MIN` (0.62),
+  `GARBAGE_AI_MIN` (0.30). Set `GARBAGE_PHOTO_CHECK=false` to disable.
+
+A rejected photo returns HTTP 400 with a message the UI shows as a toast
+(e.g. *"That before-photo does not look like garbage — Photo appears empty — no waste visible."*).
+
 ## Points
 
 | Action | Points |
@@ -162,8 +180,9 @@ on both dashboards.
 ## Tests
 
 ```bash
-npm test              # unit: CV sanity (same-waste scores high, different-waste low) + challenges
+npm test              # unit: CV sanity + garbage-photo gate + challenges
 npm run test:cv       # CV matching only
+npm run test:garbage  # garbage-photo gate (accepts waste, rejects blank/empty/plain photos)
 npm run test:challenges  # challenge completion + bonus-payout logic
 npm run test:e2e      # full flow against a live Supabase project (needs .env)
 npm run test:supplement  # registration + admin override + no-double-points (needs .env)
@@ -205,9 +224,12 @@ You can host it on Render, Railway, Fly.io, a VPS, or any Node 18+ platform.
 | `SUPABASE_URL` | ✅ | — | Supabase project URL |
 | `SUPABASE_ANON_KEY` | ✅ | — | Public browser key (config + Realtime) |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ prod | anon fallback | Server-only key for all DB writes |
-| `GROQ_API_KEY` | optional | — | AI vision for low-confidence photo matches |
+| `GROQ_API_KEY` | optional | — | AI vision for low-confidence photo matches + garbage-photo gate |
 | `GROQ_VISION_MODEL` | optional | `llama-3.2-90b-vision-preview` | Vision model id |
 | `AI_TIMEOUT_MS` | optional | `25000` | AI request timeout |
+| `GARBAGE_PHOTO_CHECK` | optional | `true` | Enable the capture-time garbage-photo gate |
+| `GARBAGE_LOCAL_MIN` | optional | `0.62` | Local score ≥ this → accept without AI |
+| `GARBAGE_AI_MIN` | optional | `0.30` | Below this → reject locally; in between → AI confirm |
 | `CV_VERIFIED` | optional | `0.82` | Score ≥ this → auto-verified locally |
 | `CV_AI_MIN` | optional | `0.55` | Scores in `[this, CV_VERIFIED)` → send to AI |
 | `CV_GPS_MAX_M` | optional | `300` | Max before/after GPS distance (m) |

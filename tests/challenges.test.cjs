@@ -19,11 +19,16 @@ async function api(token, method, path, body) {
   if (!res.ok) throw new Error(`${method} ${path}: ${json.error || res.status}`);
   return json;
 }
-async function photo(color, bg) {
-  const svg = Buffer.from(`<svg width="320" height="220"><rect width="320" height="220" fill="${bg}"/><rect x="30" y="40" width="${color.w}" height="${color.h}" fill="${color.fill}"/></svg>`);
+async function photo(bags, bg) {
+  const rects = bags.map((c) => `<rect x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" fill="${c.fill}"/>`).join('');
+  const svg = Buffer.from(`<svg width="320" height="220"><rect width="320" height="220" fill="${bg}"/>${rects}</svg>`);
   return { blob: new Blob([await sharp(svg).jpeg().toBuffer()], { type: 'image/jpeg' }) };
 }
-const WASTE = { w: 90, h: 70, fill: '#1a7f37' };
+const WASTE = [
+  { x: 30, y: 40, w: 90, h: 70, fill: '#1a7f37' },
+  { x: 160, y: 90, w: 100, h: 55, fill: '#d4a017' },
+  { x: 70, y: 150, w: 80, h: 40, fill: '#8a5a00' },
+];
 
 async function poll(apiCall, predicate, label, timeoutMs = 8000) {
   const start = Date.now();

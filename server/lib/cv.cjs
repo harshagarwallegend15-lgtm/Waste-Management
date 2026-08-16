@@ -14,15 +14,14 @@ function hashBuffer(buf) {
  * Preprocessing helpers
  * ============================================================ */
 
-/** Auto-contrast (histogram stretch) + EXIF-aware orientation + square resize. */
-function prepRGB(buf, size = 512) {
-  return sharp(buf)
-    .rotate()
-    .resize(size, size, { fit: 'fill' })
-    .removeAlpha()
-    .normalize()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+/** Auto-contrast (histogram stretch) + EXIF-aware orientation + square resize.
+ *  `normalize: false` (used by the garbage gate) skips the stretch so true hues
+ *  survive on low-contrast photos. */
+function prepRGB(buf, size = 512, opts = {}) {
+  const { normalize = true } = opts;
+  let pipeline = sharp(buf).rotate().resize(size, size, { fit: 'fill' }).removeAlpha();
+  if (normalize) pipeline = pipeline.normalize();
+  return pipeline.raw().toBuffer({ resolveWithObject: true });
 }
 
 function prepGray(buf, size = 64) {
@@ -224,6 +223,20 @@ async function classHistogram(buf) {
   return bins;
 }
 
+/** Global 8-class color histogram WITHOUT auto-contrast — preserves the true hue
+ *  distribution of low-contrast photos (used by the garbage-photo gate). */
+async function classHistogramRaw(buf) {
+  const size = 128;
+  const { data, info } = await prepRGB(buf, size, { normalize: false });
+  const bins = new Float64Array(8);
+  for (let i = 0; i < data.length; i += info.channels) {
+    bins[colorClass(data[i], data[i + 1], data[i + 2])]++;
+  }
+  const total = (data.length / info.channels) | 0;
+  for (let i = 0; i < bins.length; i++) bins[i] /= total;
+  return bins;
+}
+
 /**
  * Estimate the background color from the image border, then build a
  * foreground-only color histogram (8 classes). Focuses the comparison
@@ -318,6 +331,128 @@ async function texture(buf) {
   return dims;
 }
 
+/**
+ * Foreground statistics: estimate the background color from the image border,
+ * then measure how much of the frame differs from it and how varied that
+ * foreground is. Used by the garbage-photo gate.
+ * Returns { fraction, distinct, topShare }:
+ *   fraction  — share of pixels that differ from the border background (0..1)
+ *   distinct  — number of distinct color classes present in the foreground (0..8)
+ *   topShare  — share of foreground pixels in the single most common class (0..1)
+ */
+async function foregroundStats(buf) {
+  const size = 96;
+  const { data, info } = await prepRGB(buf, size);
+
+  let br = 0, bg = 0, bb = 0, bc = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const onBorder = x === 0 || y === 0 || x === size - 1 || y === size - 1;
+      if (!onBorder) continue;
+      const i = (y * size + x) * info.channels;
+      br += data[i]; bg += data[i + 1]; bb += data[i + 2]; bc++;
+    }
+  }
+  br /= bc; bg /= bc; bb /= bc;
+
+  const clsCount = new Float64Array(8);
+  let total = 0;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * info.channels;
+      const d = Math.abs(data[i] - br) + Math.abs(data[i + 1] - bg) + Math.abs(data[i + 2] - bb);
+      if (d < 90) continue; // looks like background
+      clsCount[colorClass(data[i], data[i + 1], data[i + 2])]++;
+      total++;
+    }
+  }
+  if (total === 0) return { fraction: 0, distinct: 0, topShare: 0 };
+  let distinct = 0, top = 0;
+  for (let c = 0; c < 8; c++) {
+    if (clsCount[c] > 0) distinct++;
+    if (clsCount[c] > top) top = clsCount[c];
+  }
+  return { fraction: total / (size * size), distinct, topShare: top / total };
+}
+
+/**
+ * Classify whether a photo plausibly shows garbage/waste rather than a blank,
+ * plain, or unrelated scene. Returns a 0..1 "garbage-likeness" score plus the
+ * underlying signals so callers can explain rejections.
+ *
+ * Waste photos tend to be heterogeneous: visible foreground objects, real
+ * texture, several distinct colors and some edge content. Blank walls, empty
+ * floors and plain documents score low on all of those; near-empty scenes are
+ * rejected outright. This is a heuristic gate — the AI vision band in
+ * lib/garbage.cjs catches the cases local signals cannot (selfies, landscapes).
+ */
+async function classifyGarbage(buf) {
+  const [edge, tex, fg, cls] = await Promise.all([
+    edgeDensity(buf),
+    texture(buf),
+    foregroundStats(buf),
+    classHistogramRaw(buf),
+  ]);
+
+  let edgeMean = 0;
+  for (let i = 0; i < edge.length; i++) edgeMean += edge[i];
+  edgeMean /= edge.length;
+
+  let texMean = 0;
+  for (let i = 0; i < tex.length; i++) texMean += tex[i];
+  texMean /= tex.length;
+
+  // A single dominant achromatic class (e.g. one big gray/white wall) is a strong
+  // "plain scene" tell; several colored classes is a strong "waste" tell.
+  const grayShare = cls[1];
+  const coloredShare = 1 - cls[0] - cls[1];
+  let coloredClasses = 0;
+  for (let c = 2; c < 8; c++) if (cls[c] >= 0.015) coloredClasses++;
+
+  const textureScore = Math.min(1, texMean / 3.5);
+  const edgeScore = Math.min(1, edgeMean * 5);
+  const colorScore = Math.min(1, coloredClasses / 3);
+  const nonEmpty = Math.min(1, fg.fraction / 0.18);
+  const variety = Math.min(1, coloredShare * 4);
+
+  let score =
+    0.28 * textureScore +
+    0.22 * edgeScore +
+    0.30 * colorScore +
+    0.10 * nonEmpty +
+    0.10 * variety;
+  score = Math.max(0, Math.min(1, score));
+
+  // Hard negatives — these are unambiguous even though the weighted sum may sit
+  // in the ambiguous band for some near-plain images.
+  let reason = '';
+  if (fg.fraction < 0.015) {
+    reason = 'Photo appears empty — no waste visible';
+    score = Math.min(score, 0.12);
+  } else if (edgeMean < 0.02 && texMean < 0.5) {
+    reason = 'Photo looks like a plain or blank surface, not waste';
+    score = Math.min(score, 0.2);
+  } else if (fg.distinct < 2 && texMean < 0.8) {
+    reason = 'Photo is too uniform to show garbage';
+    score = Math.min(score, 0.28);
+  }
+
+  return {
+    score,
+    reason,
+    signals: {
+      edge_mean: Number(edgeMean.toFixed(3)),
+      texture_mean: Number(texMean.toFixed(3)),
+      fg_fraction: Number(fg.fraction.toFixed(3)),
+      fg_distinct_colors: fg.distinct,
+      fg_top_share: Number(fg.topShare.toFixed(3)),
+      gray_share: Number(grayShare.toFixed(3)),
+      colored_share: Number(coloredShare.toFixed(3)),
+      colored_classes: coloredClasses,
+    },
+  };
+}
+
 /** Cosine similarity between two vectors (0..1). */
 function cosineSim(a, b) {
   let dot = 0, na = 0, nb = 0;
@@ -408,8 +543,11 @@ module.exports = {
   hsvHistogram,
   colorClass,
   classHistogram,
+  classHistogramRaw,
   foregroundClassHistogram,
   edgeDensity,
   texture,
+  foregroundStats,
+  classifyGarbage,
   hashBuffer,
 };

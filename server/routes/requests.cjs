@@ -4,6 +4,7 @@ const multer = require('multer');
 const { db, uploadPhoto } = require('../lib/supabase.cjs');
 const { authRequired, roleGuard } = require('../middleware/auth.cjs');
 const { verifyCollection } = require('../lib/verify.cjs');
+const { assertGarbagePhoto } = require('../lib/garbage.cjs');
 const { awardCollectionPoints } = require('../lib/points.cjs');
 const { recomputeSocietyScore } = require('../lib/scoring.cjs');
 const { checkChallengeCompletions } = require('../lib/challenges.cjs');
@@ -24,6 +25,11 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'Before-photo is required' });
+      try {
+        await assertGarbagePhoto(req.file.buffer, { label: 'before-photo' });
+      } catch (e) {
+        return res.status(e.status || 400).json({ error: e.message });
+      }
       const { waste_type, gps_lat, gps_lng } = req.body;
       const url = await uploadPhoto(PHOTO_BUCKET, `requests/${req.profile.id}`, req.file.originalname || 'photo.jpg', req.file.buffer, req.file.mimetype);
       if (!url) return res.status(500).json({ error: 'Photo upload failed' });
@@ -107,6 +113,11 @@ router.post(
   async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'After-photo is required' });
+      try {
+        await assertGarbagePhoto(req.file.buffer, { label: 'after-photo' });
+      } catch (e) {
+        return res.status(e.status || 400).json({ error: e.message });
+      }
       const { data: request, error } = await db
         .from('collection_requests')
         .select('*')

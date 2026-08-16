@@ -13,6 +13,7 @@
     "seed": "node scripts/seed.cjs",
     "test": "node --test tests/*.test.cjs",
     "test:cv": "node --test tests/cv.test.cjs",
+    "test:garbage": "node --test tests/garbage.test.cjs",
     "test:challenges": "node --test tests/challenges.test.cjs",
     "test:e2e": "node tests/e2e.cjs",
     "test:supplement": "node tests/supplement.cjs"

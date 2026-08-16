@@ -99,6 +99,96 @@ async function groqComparePhotosSafe(dataUrlA, dataUrlB) {
   throw lastErr;
 }
 
+/**
+ * Ask Groq's vision model whether a single photo shows garbage/waste.
+ * Returns { isGarbage, confidence, reason }.
+ */
+function groqIsGarbage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    if (!GROQ_API_KEY) return reject(new Error('GROQ_API_KEY not configured'));
+    const payload = JSON.stringify({
+      model: VISION_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text:
+                'You are a gatekeeper in a waste-collection app. Determine whether this photo ' +
+                'shows garbage/waste (waste bags, loose trash, dumped rubbish, bins of waste). ' +
+                'Reject if it shows anything else: people, faces, landscapes, documents, empty ' +
+                'rooms/floors, walls, vehicles, animals, food at a restaurant table, or you cannot ' +
+                'confidently tell. ' +
+                'Respond with ONLY valid JSON (no markdown, no commentary): ' +
+                '{"garbage": true|false, "confidence": 0.0-1.0, "reason": "max 15 words"}.',
+            },
+            { type: 'image_url', image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 80,
+    });
+
+    const req = https.request(
+      {
+        hostname: 'api.groq.com',
+        path: '/openai/v1/chat/completions',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          'Content-Length': Buffer.byteLength(payload),
+        },
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (c) => (body += c));
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(body);
+            const content = json.choices?.[0]?.message?.content || '';
+            const parsed = JSON.parse(
+              content
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .trim()
+            );
+            const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0.5));
+            resolve({
+              isGarbage: parsed.garbage === true,
+              confidence,
+              reason: String(parsed.reason || '').slice(0, 200),
+            });
+          } catch (e) {
+            reject(new Error('Could not parse AI verdict: ' + body.slice(0, 300)));
+          }
+        });
+      }
+    );
+    req.setTimeout(AI_TIMEOUT_MS, () => req.destroy(new Error('AI request timed out')));
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+/**
+ * Retry-tolerant wrapper for the single-photo garbage check.
+ */
+async function groqIsGarbageSafe(dataUrl) {
+  let lastErr;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await groqIsGarbage(dataUrl);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
 /** Convert an image buffer to a compact base64 data URL (≤512px JPEG). */
 async function toDataUrl(buffer, contentType) {
   const type = contentType || 'image/jpeg';
@@ -114,4 +204,4 @@ async function toDataUrl(buffer, contentType) {
   return `data:${type};base64,${Buffer.from(buffer).toString('base64')}`;
 }
 
-module.exports = { groqComparePhotos: groqComparePhotosSafe, toDataUrl };
+module.exports = { groqComparePhotos: groqComparePhotosSafe, groqIsGarbage: groqIsGarbageSafe, toDataUrl };

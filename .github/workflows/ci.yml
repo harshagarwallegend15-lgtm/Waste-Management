@@ -23,7 +23,9 @@ jobs:
           for f in $(find server scripts tests -name '*.cjs'); do node --check "$f"; done
           for f in $(find public/js -name '*.js'); do node --check "$f"; done
       - name: Unit tests (CV matching — no external services)
-        run: npm run test:cv
+        run: |
+          npm run test:cv
+          npm run test:garbage
 
       # Integration tests (e2e, supplement, challenges) require a live Supabase
       # project + running server, so they are not run in CI.

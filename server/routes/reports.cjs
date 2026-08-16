@@ -4,6 +4,7 @@ const multer = require('multer');
 const { db, uploadPhoto } = require('../lib/supabase.cjs');
 const { authRequired, roleGuard } = require('../middleware/auth.cjs');
 const { logEvent, checkReportDuplicate } = require('../lib/verify.cjs');
+const { assertGarbagePhoto } = require('../lib/garbage.cjs');
 const { awardReportPoints } = require('../lib/points.cjs');
 const { recomputeSocietyScore } = require('../lib/scoring.cjs');
 const { checkChallengeCompletions } = require('../lib/challenges.cjs');
@@ -15,6 +16,11 @@ const PHOTO_BUCKET = 'waste-photos';
 router.post('/', authRequired, roleGuard('resident'), upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Photo is required' });
+    try {
+      await assertGarbagePhoto(req.file.buffer, { label: 'photo' });
+    } catch (e) {
+      return res.status(e.status || 400).json({ error: e.message });
+    }
     const { gps_lat, gps_lng, description } = req.body;
     const url = await uploadPhoto(PHOTO_BUCKET, `reports/${req.profile.id}`, req.file.originalname || 'report.jpg', req.file.buffer, req.file.mimetype);
     if (!url) return res.status(500).json({ error: 'Photo upload failed' });
