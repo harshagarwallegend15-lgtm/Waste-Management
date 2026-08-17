@@ -5,7 +5,6 @@ let selectedResident = null;
 let selectedRequest = null;
 let arrived = false;
 let workPhoto = null;
-let _cachedResidents = null;
 
 async function init() {
   if (!profile) return;
@@ -15,16 +14,22 @@ async function init() {
   loadPoints();
   loadLeaderboard();
 
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'collection_requests', filter: `area_id=eq.${profile.area_id}` }, () => loadResidents());
-  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests', filter: `area_id=eq.${profile.area_id}` }, () => loadResidents());
+  const rt = WWRealtime.subscribe({ event: '*', schema: 'public', table: 'collection_requests' }, () => loadResidents());
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions', filter: `user_id=eq.${profile.id}` }, () => { loadPoints(); loadLeaderboard(); });
   WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => loadLeaderboard());
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => loadLeaderboard());
+  if (!rt) startPoll();
+}
+
+let _poll = null;
+function startPoll() {
+  if (_poll) return;
+  _poll = setInterval(() => loadResidents(), 15000);
 }
 
 async function loadResidents() {
   try {
     const data = await WW.api('/api/requests/area-residents');
-    _cachedResidents = data;
     const { residents, area_id } = data;
     const areaName = await getAreaName(area_id);
     $('nav-area').textContent = areaName;
@@ -58,9 +63,13 @@ async function getAreaName(areaId) {
   } catch { return 'Area assigned'; }
 }
 
-function openResident(id) {
-  const residents = _cachedResidents?.residents;
-  if (!residents) return WW.toast('Data not loaded yet — click Refresh', true);
+async function openResident(id) {
+  let residents;
+  try {
+    const data = await WW.api('/api/requests/area-residents');
+    residents = data.residents;
+  } catch { residents = null; }
+  if (!residents) return WW.toast('Could not load data — try Refresh', true);
   const resident = residents.find((r) => r.id === id);
   if (!resident) return WW.toast('Resident not found', true);
   selectedResident = resident;
