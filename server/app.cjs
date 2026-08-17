@@ -90,6 +90,50 @@ app.get('/api/meta', async (req, res) => {
   res.json({ areas: areas.data || [], societies });
 });
 
+// Temporary debug endpoint to test Groq vision API format
+app.get('/api/debug/groq', async (req, res) => {
+  const Groq = require('groq-sdk');
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return res.json({ error: 'No GROQ_API_KEY' });
+
+  const client = new Groq({ apiKey: key });
+  // Test 1: public URL
+  try {
+    const r1 = await client.chat.completions.create({
+      model: 'qwen/qwen3.6-27b',
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: 'Say hello in 3 words.' },
+      ]}],
+      max_completion_tokens: 20,
+    });
+    res.json({ text_ok: true, text_result: r1.choices[0].message.content });
+  } catch (e) {
+    res.json({ text_ok: false, text_error: e.message });
+  }
+});
+
+app.get('/api/debug/groq-image', async (req, res) => {
+  const Groq = require('groq-sdk');
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return res.json({ error: 'No GROQ_API_KEY' });
+
+  const client = new Groq({ apiKey: key });
+  try {
+    const r = await client.chat.completions.create({
+      model: 'qwen/qwen3.6-27b',
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: 'Describe this image in 5 words.' },
+        { type: 'image_url', image_url: { url: 'https://upload.wikimedia.org/wikipedia/commons/f/f2/LPU-v1-die.jpg' } }
+      ]}],
+      max_completion_tokens: 30,
+      temperature: 0.1,
+    });
+    res.json({ image_url_ok: true, result: r.choices[0].message.content });
+  } catch (e) {
+    res.json({ image_url_ok: false, error: e.message.slice(0, 500) });
+  }
+});
+
 // Unknown API routes → JSON 404 (not the SPA)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
