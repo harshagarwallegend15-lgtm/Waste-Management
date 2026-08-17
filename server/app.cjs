@@ -118,19 +118,49 @@ app.get('/api/debug/groq-image', async (req, res) => {
   if (!key) return res.json({ error: 'No GROQ_API_KEY' });
 
   const client = new Groq({ apiKey: key });
+  
+  const supabaseUrl = 'https://dvmzqkfuvzhmobvwlwfx.supabase.co/storage/v1/object/public/waste-photos/requests/3b1205ac-3597-45bc-a951-34d465ac0398/1786733140792-before.jpg';
+  
+  // Test A: public URL
   try {
     const r = await client.chat.completions.create({
       model: 'qwen/qwen3.6-27b',
       messages: [{ role: 'user', content: [
         { type: 'text', text: 'Describe this image in 5 words.' },
-        { type: 'image_url', image_url: { url: 'https://upload.wikimedia.org/wikipedia/commons/f/f2/LPU-v1-die.jpg' } }
+        { type: 'image_url', image_url: { url: supabaseUrl } }
       ]}],
       max_completion_tokens: 30,
       temperature: 0.1,
     });
-    res.json({ image_url_ok: true, result: r.choices[0].message.content });
+    res.json({ public_url_ok: true, result: r.choices[0].message.content });
   } catch (e) {
-    res.json({ image_url_ok: false, error: e.message.slice(0, 500) });
+    res.json({ public_url_ok: false, error: e.message.slice(0, 500) });
+  }
+});
+
+app.get('/api/debug/groq-base64', async (req, res) => {
+  const Groq = require('groq-sdk');
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return res.json({ error: 'No GROQ_API_KEY' });
+  const client = new Groq({ apiKey: key });
+
+  // Tiny 1x1 red pixel JPEG
+  const tinyJpeg = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMCwsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AKwA//9k=';
+  const dataUrl = 'data:image/jpeg;base64,' + tinyJpeg;
+
+  try {
+    const r = await client.chat.completions.create({
+      model: 'qwen/qwen3.6-27b',
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: 'Describe this image.' },
+        { type: 'image_url', image_url: { url: dataUrl } }
+      ]}],
+      max_completion_tokens: 30,
+      temperature: 0.1,
+    });
+    res.json({ data_url_ok: true, result: r.choices[0].message.content });
+  } catch (e) {
+    res.json({ data_url_ok: false, error: e.message.slice(0, 500) });
   }
 });
 
