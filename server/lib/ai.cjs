@@ -2,7 +2,7 @@ const https = require('https');
 const sharp = require('sharp');
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const VISION_MODEL = process.env.GROQ_VISION_MODEL || 'llama-3.2-90b-vision-preview';
+const VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
 const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 25000);
 
 /**
