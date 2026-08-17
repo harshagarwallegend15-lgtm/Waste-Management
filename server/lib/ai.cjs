@@ -12,7 +12,10 @@ function getClient() {
 }
 
 function parseJSON(str) {
-  const cleaned = str.replace(/```json/g, '').replace(/```/g, '').trim();
+  let cleaned = str.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```json/g, '').replace(/```/g, '').trim();
+  const jsonStart = cleaned.indexOf('{');
+  const jsonEnd = cleaned.lastIndexOf('}');
+  if (jsonStart !== -1 && jsonEnd !== -1) cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
   return JSON.parse(cleaned);
 }
 
