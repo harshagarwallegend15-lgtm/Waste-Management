@@ -1,7 +1,7 @@
 const sharp = require('sharp');
 const { db } = require('./supabase.cjs');
 const { similarity } = require('./cv.cjs');
-const { groqComparePhotos, toDataUrl } = require('./ai.cjs');
+const { groqComparePhotos } = require('./ai.cjs');
 
 // Tuneable thresholds (override via env)
 const MAX_GPS_DISTANCE_M = Number(process.env.CV_GPS_MAX_M || 300);   // generous doorstep tolerance
@@ -112,7 +112,7 @@ async function verifyCollection(reqRow, afterBuffer) {
   } else if (!emptyAfter && localScore >= AI_BAND_MIN) {
     cvMethod = 'hybrid';
     try {
-      const ai = await groqComparePhotos(toDataUrl(beforeCanon, 'image/jpeg'), toDataUrl(afterCanon, 'image/jpeg'));
+      const ai = await groqComparePhotos(reqRow.before_photo_url, reqRow.after_photo_url);
       cvScore = ai.verdict === 'verified' ? Math.max(localScore, ai.confidence) : Math.min(localScore, ai.confidence);
       verdict = ai.verdict;
       aiReason = ai.reason;

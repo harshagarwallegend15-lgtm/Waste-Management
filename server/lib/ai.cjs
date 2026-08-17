@@ -16,7 +16,7 @@ function parseJSON(str) {
   return JSON.parse(cleaned);
 }
 
-async function groqComparePhotos(dataUrlA, dataUrlB) {
+async function groqComparePhotos(photoUrlA, photoUrlB) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured');
 
   const completion = await getClient().chat.completions.create({
@@ -40,8 +40,8 @@ async function groqComparePhotos(dataUrlA, dataUrlB) {
               'Respond with ONLY valid JSON (no markdown, no commentary): ' +
               '{"match": true|false, "confidence": 0.0-1.0, "reason": "max 20 words"}.',
           },
-          { type: 'image_url', image_url: { url: dataUrlA } },
-          { type: 'image_url', image_url: { url: dataUrlB } },
+          { type: 'image_url', image_url: { url: photoUrlA } },
+          { type: 'image_url', image_url: { url: photoUrlB } },
         ],
       },
     ],
@@ -61,7 +61,7 @@ async function groqComparePhotos(dataUrlA, dataUrlB) {
   }
 }
 
-async function groqIsGarbage(dataUrl) {
+async function groqIsGarbage(photoUrl) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured');
 
   const completion = await getClient().chat.completions.create({
@@ -83,7 +83,7 @@ async function groqIsGarbage(dataUrl) {
               'Respond with ONLY valid JSON (no markdown, no commentary): ' +
               '{"garbage": true|false, "confidence": 0.0-1.0, "reason": "max 15 words"}.',
           },
-          { type: 'image_url', image_url: { url: dataUrl } },
+          { type: 'image_url', image_url: { url: photoUrl } },
         ],
       },
     ],
@@ -103,34 +103,20 @@ async function groqIsGarbage(dataUrl) {
   }
 }
 
-async function groqComparePhotosSafe(dataUrlA, dataUrlB) {
+async function groqComparePhotosSafe(photoUrlA, photoUrlB) {
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
-    try { return await groqComparePhotos(dataUrlA, dataUrlB); } catch (e) { lastErr = e; }
+    try { return await groqComparePhotos(photoUrlA, photoUrlB); } catch (e) { lastErr = e; }
   }
   throw lastErr;
 }
 
-async function groqIsGarbageSafe(dataUrl) {
+async function groqIsGarbageSafe(photoUrl) {
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
-    try { return await groqIsGarbage(dataUrl); } catch (e) { lastErr = e; }
+    try { return await groqIsGarbage(photoUrl); } catch (e) { lastErr = e; }
   }
   throw lastErr;
 }
 
-async function toDataUrl(buffer, contentType) {
-  const type = contentType || 'image/jpeg';
-  if (buffer && buffer.length > 0 && contentType === 'image/jpeg') {
-    const small = await sharp(buffer)
-      .rotate()
-      .resize({ width: 384, height: 384, fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 70 })
-      .toBuffer()
-      .catch(() => buffer);
-    return `data:${type};base64,${small.toString('base64')}`;
-  }
-  return `data:${type};base64,${Buffer.from(buffer).toString('base64')}`;
-}
-
-module.exports = { groqComparePhotos: groqComparePhotosSafe, groqIsGarbage: groqIsGarbageSafe, toDataUrl };
+module.exports = { groqComparePhotos: groqComparePhotosSafe, groqIsGarbage: groqIsGarbageSafe };
