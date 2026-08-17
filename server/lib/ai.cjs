@@ -37,7 +37,7 @@ function groqComparePhotos(dataUrlA, dataUrlB) {
         },
       ],
       temperature: 0.1,
-      max_tokens: 90,
+      max_completion_tokens: 90,
     });
 
     const req = https.request(
@@ -71,7 +71,7 @@ function groqComparePhotos(dataUrlA, dataUrlB) {
               reason: String(parsed.reason || '').slice(0, 200),
             });
           } catch (e) {
-            reject(new Error('Could not parse AI verdict: ' + body.slice(0, 300)));
+            reject(new Error('Could not parse AI verdict (compare): ' + body.slice(0, 500)));
           }
         });
       }
@@ -128,7 +128,7 @@ function groqIsGarbage(dataUrl) {
         },
       ],
       temperature: 0.1,
-      max_tokens: 80,
+      max_completion_tokens: 80,
     });
 
     const req = https.request(
@@ -162,7 +162,7 @@ function groqIsGarbage(dataUrl) {
               reason: String(parsed.reason || '').slice(0, 200),
             });
           } catch (e) {
-            reject(new Error('Could not parse AI verdict: ' + body.slice(0, 300)));
+            reject(new Error('Could not parse AI verdict (garbage): ' + body.slice(0, 500)));
           }
         });
       }
@@ -189,14 +189,14 @@ async function groqIsGarbageSafe(dataUrl) {
   throw lastErr;
 }
 
-/** Convert an image buffer to a compact base64 data URL (≤512px JPEG). */
+/** Convert an image buffer to a compact base64 data URL (≤384px JPEG, quality 70). */
 async function toDataUrl(buffer, contentType) {
   const type = contentType || 'image/jpeg';
   if (buffer && buffer.length > 0 && contentType === 'image/jpeg') {
     const small = await sharp(buffer)
       .rotate()
-      .resize({ width: 512, height: 512, fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 80 })
+      .resize({ width: 384, height: 384, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 70 })
       .toBuffer()
       .catch(() => buffer);
     return `data:${type};base64,${small.toString('base64')}`;
