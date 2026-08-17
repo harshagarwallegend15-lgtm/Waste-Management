@@ -26,6 +26,7 @@ async function groqComparePhotos(photoUrlA, photoUrlB) {
     model: VISION_MODEL,
     temperature: 0.1,
     max_completion_tokens: 90,
+    reasoning_effort: 'none',
     messages: [
       {
         role: 'user',
@@ -71,6 +72,7 @@ async function groqIsGarbage(photoUrl) {
     model: VISION_MODEL,
     temperature: 0.1,
     max_completion_tokens: 80,
+    reasoning_effort: 'none',
     messages: [
       {
         role: 'user',
