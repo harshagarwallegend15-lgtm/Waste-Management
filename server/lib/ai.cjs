@@ -2,7 +2,7 @@ const https = require('https');
 const sharp = require('sharp');
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const VISION_MODEL = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+const VISION_MODEL = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.6-27b';
 const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 25000);
 
 /**
@@ -31,8 +31,8 @@ function groqComparePhotos(dataUrlA, dataUrlB) {
                 'Respond with ONLY valid JSON (no markdown, no commentary): ' +
                 '{"match": true|false, "confidence": 0.0-1.0, "reason": "max 20 words"}.',
             },
-            { type: 'document', document: { data: dataUrlA } },
-            { type: 'document', document: { data: dataUrlB } },
+            { type: 'image_url', image_url: { url: dataUrlA } },
+            { type: 'image_url', image_url: { url: dataUrlB } },
           ],
         },
       ],
@@ -123,7 +123,7 @@ function groqIsGarbage(dataUrl) {
                 'Respond with ONLY valid JSON (no markdown, no commentary): ' +
                 '{"garbage": true|false, "confidence": 0.0-1.0, "reason": "max 15 words"}.',
             },
-            { type: 'document', document: { data: dataUrl } },
+            { type: 'image_url', image_url: { url: dataUrl } },
           ],
         },
       ],
