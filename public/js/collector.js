@@ -5,6 +5,7 @@ let selectedResident = null;
 let selectedRequest = null;
 let arrived = false;
 let workPhoto = null;
+let _cachedResidents = null;
 
 async function init() {
   if (!profile) return;
@@ -12,14 +13,19 @@ async function init() {
   $('nav-points').textContent = profile.points ?? 0;
   await loadResidents();
   loadPoints();
+  loadLeaderboard();
 
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'collection_requests', filter: `area_id=eq.${profile.area_id}` }, () => loadResidents());
   WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests', filter: `area_id=eq.${profile.area_id}` }, () => loadResidents());
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions', filter: `user_id=eq.${profile.id}` }, () => { loadPoints(); loadLeaderboard(); });
+  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => loadLeaderboard());
 }
 
 async function loadResidents() {
   try {
-    const { residents, area_id } = await WW.api('/api/requests/area-residents');
+    const data = await WW.api('/api/requests/area-residents');
+    _cachedResidents = data;
+    const { residents, area_id } = data;
     const areaName = await getAreaName(area_id);
     $('nav-area').textContent = areaName;
     if (!residents.length) {
@@ -52,14 +58,16 @@ async function getAreaName(areaId) {
   } catch { return 'Area assigned'; }
 }
 
-async function openResident(id) {
-  const { residents } = await WW.api('/api/requests/area-residents');
+function openResident(id) {
+  const residents = _cachedResidents?.residents;
+  if (!residents) return WW.toast('Data not loaded yet — click Refresh', true);
   const resident = residents.find((r) => r.id === id);
-  if (!resident) return;
+  if (!resident) return WW.toast('Resident not found', true);
   selectedResident = resident;
   selectedRequest = resident.pending_requests[0] || null;
   arrived = false;
   workPhoto = null;
+  window._arrivedGps = null;
 
   $('work').classList.remove('hidden');
   $('work-name').textContent = resident.name;
@@ -86,9 +94,15 @@ async function openResident(id) {
         </div>`).join('')
     : '<p class="muted">No pending requests.</p>';
 
+  $('work-result').innerHTML = '';
+  $('work-retake').click();
+
   try {
-    await WWCamera.start($('work-video'));
-    $('work-status').textContent += ' Camera ready.';
+    WWCamera.start($('work-video')).then(() => {
+      $('work-status').textContent += ' Camera ready.';
+    }).catch(() => {
+      $('work-status').textContent += ' Camera unavailable.';
+    });
   } catch {
     $('work-status').textContent += ' Camera unavailable.';
   }
@@ -97,6 +111,7 @@ async function openResident(id) {
 async function markArrived() {
   if (!selectedResident?.gps_lat) { arrived = true; $('work-status').textContent = 'Arrived (no GPS pin to verify against).'; return; }
   $('work-arrived').disabled = true;
+  $('work-status').textContent = 'Checking GPS…';
   try {
     const pos = await WWGps.get();
     window._arrivedGps = { lat: pos.lat, lng: pos.lng };
@@ -152,9 +167,21 @@ $('work-submit').onclick = async () => {
     fd.append('gps_lng', gps.lng);
     const data = await WW.api(`/api/requests/${selectedRequest.id}/complete`, { method: 'POST', form: fd });
     renderResult(data.verification);
+    if (data.points && data.points.length) {
+      const collectorPts = data.points.find((p) => p.user_id === profile.id);
+      if (collectorPts) {
+        $('nav-points').textContent = collectorPts.newPoints;
+        WW.toast(`Verified! +${collectorPts.txn.delta} points awarded.`);
+      }
+    }
+    workPhoto = null;
+    arrived = false;
+    window._arrivedGps = null;
+    selectedRequest = null;
     $('work-retake').click();
-    loadResidents();
+    await loadResidents();
     loadPoints();
+    loadLeaderboard();
   } catch (err) {
     $('work-status').textContent = err.message;
     WW.toast(err.message, true);
@@ -163,7 +190,7 @@ $('work-submit').onclick = async () => {
 };
 
 function renderResult(v) {
-  const score = (v.cv_score * 100).toFixed(0);
+  const score = v.cv_score != null ? (v.cv_score * 100).toFixed(0) : '—';
   let verdictHtml;
   if (v.verdict === 'verified') verdictHtml = '<span class="badge green">VERIFIED ✅</span>';
   else if (v.verdict === 'flagged') verdictHtml = '<span class="badge red">FLAGGED — admin will review</span>';
@@ -176,7 +203,7 @@ function renderResult(v) {
     <p style="margin-top:8px;">Match score: <b>${score}%</b> (method: ${v.cv_method || 'local'})</p>
     ${v.ai_reason ? `<p class="muted">AI verdict: ${WW.escapeHtml(v.ai_reason)}</p>` : ''}
     <p class="muted" style="margin-top:6px;">${reasons}</p>
-    ${v.verdict === 'verified' ? '<p class="hint" style="margin-top:8px;">Points awarded: you +10, resident +20. Admin portal updated.</p>' : '<p class="hint" style="margin-top:8px;">The admin dashboard has been updated for review.</p>'}`;
+    ${v.verdict === 'verified' ? '<p class="hint" style="margin-top:8px;">Points awarded: you +10, resident +20. Leaderboard updated.</p>' : '<p class="hint" style="margin-top:8px;">The admin dashboard has been updated for review.</p>'}`;
   $('work-result').scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -184,6 +211,24 @@ async function loadPoints() {
   try {
     const { points } = await WW.api('/api/points/me');
     $('nav-points').textContent = points;
+  } catch {}
+}
+
+async function loadLeaderboard() {
+  try {
+    const data = await WW.api('/api/leaderboard/all');
+    const top = (data.collectors || []).slice(0, 10);
+    const el = $('leaderboard');
+    if (el) {
+      el.innerHTML = top.length
+        ? top.map((r, i) => `
+          <div class="rank-row">
+            <div class="pos ${i < 3 ? 'top' : ''}">${i + 1}</div>
+            <div class="name">${WW.escapeHtml(r.name)}</div>
+            <div class="pts">${r.points}</div>
+          </div>`).join('')
+        : '<p class="muted">No collectors yet.</p>';
+    }
   } catch {}
 }
 

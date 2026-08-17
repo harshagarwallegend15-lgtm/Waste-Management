@@ -33,12 +33,14 @@ async function init() {
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'dumping_reports', filter: `resident_id=eq.${profile.id}` }, () => loadMyReports());
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'problem_comments' }, () => loadProblems());
   WWRealtime.subscribe({ event: '*', schema: 'public', table: 'challenge_completions' }, () => loadChallenges());
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => loadLeaderboard());
+  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests' }, () => loadLeaderboard());
 
   // Realtime society board: refresh whenever society data changes anywhere.
   WWRealtime.subscribe({ event: '*', schema: 'public', table: 'societies' }, () => loadSocieties()).then((s) => {
     if (!s) startSocietyPoll();
   });
-  WWRealtime.subscribe({ event: '*', schema: 'public', table: 'society_scores' }, () => loadSocieties()).then((s) => {
+  WWRealtime.subscribe({ event: '*', schema: 'public', table: 'society_scores' }, () => { loadSocieties(); loadLeaderboard(); }).then((s) => {
     if (!s) startSocietyPoll();
   });
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'society_problems', filter: `society_id=eq.${profile.society_id}` }, () => { loadProblems(); loadSocieties(); });
