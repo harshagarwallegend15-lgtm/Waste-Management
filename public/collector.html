@@ -11,37 +11,25 @@
   <header class="site-header" id="site-header" data-page="dash" data-role="collector"></header>
 
   <main class="dash">
-    <h2>Residents in your area</h2>
-    <p class="muted">Residents with a pending collection request appear first. Click a resident to visit, upload the after-collection photo, and get verified.</p>
-
-    <div class="section-title">
-      <span>📍 Residents (pending first)</span>
-      <button class="secondary" onclick="loadResidents()">↻ Refresh</button>
-    </div>
-
-    <div id="resident-list"><p class="muted">Loading…</p></div>
-
-    <div class="card" style="margin-top:20px;">
-      <div class="section-title" style="margin-top:0;"><span>🏆 Collector leaderboard</span></div>
-      <div id="leaderboard"><p class="muted">Loading…</p></div>
-    </div>
-
-    <!-- Working modal: resident detail -->
-    <section id="work" class="hidden grid grid-2" style="margin-top: 20px;">
+    <!-- Working section: resident detail + capture (shown at top when active) -->
+    <section id="work" class="hidden grid grid-2" style="margin-bottom: 24px;">
       <div class="card">
-        <h3 id="work-name">—</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 id="work-name">—</h3>
+          <button class="secondary" onclick="closeWork()" style="font-size:0.85em;">✕ Close</button>
+        </div>
         <p class="muted" id="work-address"></p>
         <p class="pin" id="work-map"></p>
         <hr style="border:none; border-top:1px solid var(--border); margin:14px 0;" />
         <h4>Pending requests</h4>
         <div id="work-requests"><p class="muted">No pending requests.</p></div>
         <hr style="border:none; border-top:1px solid var(--border); margin:14px 0;" />
-        <p class="muted">Step 1 — reached the location (GPS check). Step 2 — upload the collection photo. Step 3 — the system verifies your photo against the resident's.</p>
+        <p class="muted">Step 1 — reach the location (GPS check). Step 2 — capture the collection photo. Step 3 — the system verifies your photo against the resident's.</p>
         <button id="work-arrived" class="secondary" style="margin-top: 10px;" onclick="markArrived()">📍 I'm at the location</button>
       </div>
       <div class="card" id="work-photo-card">
-        <h3>Upload collection photo</h3>
-        <p class="muted" style="margin-bottom:12px;">Capture the collected waste from the resident's doorstep.</p>
+        <h3>Capture after-photo</h3>
+        <p class="muted" style="margin-bottom:12px;">Photograph the collected waste. This will be compared against the resident's before-photo using computer vision.</p>
         <div class="camera-box">
           <video id="work-video" autoplay playsinline muted></video>
           <img id="work-preview" class="hidden" alt="preview" />
@@ -55,6 +43,21 @@
       </div>
       <div class="card" id="work-result" style="grid-column: 1 / -1;"></div>
     </section>
+
+    <h2>Residents in your area</h2>
+    <p class="muted">Residents with a pending collection request appear first. Click <b>Open</b> to visit, capture the collection photo, and get verified.</p>
+
+    <div class="section-title">
+      <span>📍 Residents (pending first)</span>
+      <button class="secondary" onclick="loadResidents()">↻ Refresh</button>
+    </div>
+
+    <div id="resident-list"><p class="muted">Loading…</p></div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="section-title" style="margin-top:0;"><span>🏆 Collector leaderboard</span></div>
+      <div id="leaderboard"><p class="muted">Loading…</p></div>
+    </div>
   </main>
 
   <footer class="site-footer" id="site-footer"></footer>

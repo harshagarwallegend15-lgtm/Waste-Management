@@ -27,6 +27,10 @@ function startPoll() {
   _poll = setInterval(() => loadResidents(), 15000);
 }
 
+function stopCamera() {
+  try { WWCamera.stop(); } catch {}
+}
+
 async function loadResidents() {
   try {
     const data = await WW.api('/api/requests/area-residents');
@@ -64,21 +68,36 @@ async function getAreaName(areaId) {
 }
 
 async function openResident(id) {
+  $('work').classList.remove('hidden');
+  $('work-name').textContent = 'Loading…';
+  $('work-address').textContent = '';
+  $('work-map').innerHTML = '';
+  $('work-requests').innerHTML = '';
+  $('work-result').innerHTML = '';
+  $('work-status').textContent = 'Fetching resident data…';
+  $('work-arrived').classList.add('hidden');
+  stopCamera();
+  $('work').scrollIntoView({ behavior: 'smooth' });
+
   let residents;
   try {
     const data = await WW.api('/api/requests/area-residents');
     residents = data.residents;
   } catch { residents = null; }
-  if (!residents) return WW.toast('Could not load data — try Refresh', true);
+  if (!residents) {
+    $('work-status').textContent = 'Could not load data — try Refresh.';
+    return WW.toast('Could not load data — try Refresh', true);
+  }
   const resident = residents.find((r) => r.id === id);
-  if (!resident) return WW.toast('Resident not found', true);
+  if (!resident) {
+    $('work-status').textContent = 'Resident not found.';
+    return WW.toast('Resident not found', true);
+  }
   selectedResident = resident;
-  selectedRequest = resident.pending_requests[0] || null;
   arrived = false;
   workPhoto = null;
   window._arrivedGps = null;
 
-  $('work').classList.remove('hidden');
   $('work-name').textContent = resident.name;
   $('work-address').textContent = resident.address_text || 'No address on file';
   $('work-map').innerHTML = resident.gps_lat
@@ -94,17 +113,68 @@ async function openResident(id) {
     $('work-status').textContent = 'No GPS pin on file — photo verification only.';
   }
 
-  $('work-requests').innerHTML = resident.pending_requests.length
-    ? resident.pending_requests.map((req) => `
-        <div style="display:flex; gap:10px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border);">
-          <span>${WW.fmtDate(req.before_timestamp)}</span>
-          <span class="badge ${req.waste_type === 'mixed' ? 'gray' : 'green'}">${WW.escapeHtml(req.waste_type)}</span>
-          ${req.before_photo_url ? `<img class="photo-thumb" src="${req.before_photo_url}" />` : ''}
-        </div>`).join('')
-    : '<p class="muted">No pending requests.</p>';
+  renderRequestList(resident);
+
+  $('work-retake').click();
+
+  try {
+    WWCamera.start($('work-video')).then(() => {
+      if (!$('work-status').textContent.includes('Arrived')) {
+        $('work-status').textContent += ' Camera ready.';
+      }
+    }).catch(() => {
+      if (!$('work-status').textContent.includes('Arrived')) {
+        $('work-status').textContent += ' Camera unavailable.';
+      }
+    });
+  } catch {
+    if (!$('work-status').textContent.includes('Arrived')) {
+      $('work-status').textContent += ' Camera unavailable.';
+    }
+  }
+}
+
+function renderRequestList(resident) {
+  const pending = resident.pending_requests;
+  if (!pending.length) {
+    $('work-requests').innerHTML = '<p class="muted">No pending requests.</p>';
+    selectedRequest = null;
+    return;
+  }
+  selectedRequest = pending[0];
+  $('work-requests').innerHTML = pending.map((req, i) => `
+    <div class="request-item ${i === 0 ? 'selected' : ''}" onclick="selectRequest(${i})" style="display:flex; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer; border-radius:6px; ${i === 0 ? 'background:var(--bg-light,rgba(255,255,255,0.06));' : ''}">
+      <span style="flex:1;">${WW.fmtDate(req.before_timestamp)}</span>
+      <span class="badge ${req.waste_type === 'mixed' ? 'gray' : 'green'}">${WW.escapeHtml(req.waste_type)}</span>
+      ${req.before_photo_url ? `<img class="photo-thumb" src="${req.before_photo_url}" />` : ''}
+    </div>`).join('');
+}
+
+function selectRequest(index) {
+  if (!selectedResident) return;
+  const pending = selectedResident.pending_requests;
+  if (index < 0 || index >= pending.length) return;
+  selectedRequest = pending[index];
+  arrived = false;
+  workPhoto = null;
+  window._arrivedGps = null;
+
+  document.querySelectorAll('#work-requests .request-item').forEach((el, i) => {
+    el.style.background = i === index ? 'var(--bg-light,rgba(255,255,255,0.06))' : '';
+    el.classList.toggle('selected', i === index);
+  });
 
   $('work-result').innerHTML = '';
   $('work-retake').click();
+
+  if (selectedResident.gps_lat) {
+    $('work-status').textContent = 'Click "I\'m at the location" to run the GPS check.';
+    $('work-arrived').classList.remove('hidden');
+  } else {
+    $('work-arrived').classList.add('hidden');
+    arrived = true;
+    $('work-status').textContent = 'No GPS pin on file — photo verification only.';
+  }
 
   try {
     WWCamera.start($('work-video')).then(() => {
@@ -115,6 +185,16 @@ async function openResident(id) {
   } catch {
     $('work-status').textContent += ' Camera unavailable.';
   }
+}
+
+function closeWork() {
+  stopCamera();
+  $('work').classList.add('hidden');
+  selectedResident = null;
+  selectedRequest = null;
+  arrived = false;
+  workPhoto = null;
+  window._arrivedGps = null;
 }
 
 async function markArrived() {
@@ -134,22 +214,27 @@ async function markArrived() {
 }
 
 $('work-capture').onclick = async () => {
-  const shot = await WWCamera.capture($('work-video'));
-  $('work-status').textContent = 'Checking photo…';
+  if (!selectedRequest) return WW.toast('Select a pending request first', true);
   try {
-    await WWGarbage.checkPhoto(shot.blob, 'after-photo');
+    const shot = await WWCamera.capture($('work-video'));
+    $('work-status').textContent = 'Checking photo…';
+    try {
+      await WWGarbage.checkPhoto(shot.blob, 'after-photo');
+    } catch (e) {
+      WW.toast(e.message, true);
+      $('work-status').textContent = e.message;
+      return;
+    }
+    workPhoto = shot;
+    $('work-preview').src = shot.dataUrl;
+    $('work-preview').classList.remove('hidden');
+    $('work-video').classList.add('hidden');
+    $('work-capture').classList.add('hidden');
+    $('work-retake').classList.remove('hidden');
+    $('work-submit').classList.remove('hidden');
   } catch (e) {
-    WW.toast(e.message, true);
-    $('work-status').textContent = e.message;
-    return;
+    $('work-status').textContent = 'Capture failed: ' + e.message;
   }
-  workPhoto = shot;
-  $('work-preview').src = shot.dataUrl;
-  $('work-preview').classList.remove('hidden');
-  $('work-video').classList.add('hidden');
-  $('work-capture').classList.add('hidden');
-  $('work-retake').classList.remove('hidden');
-  $('work-submit').classList.remove('hidden');
 };
 
 $('work-retake').onclick = () => {
@@ -162,7 +247,7 @@ $('work-retake').onclick = () => {
 };
 
 $('work-submit').onclick = async () => {
-  if (!selectedRequest) return WW.toast('No pending request for this resident', true);
+  if (!selectedRequest) return WW.toast('No pending request selected', true);
   if (!workPhoto) return WW.toast('Capture the collection photo first', true);
   if (!arrived) return WW.toast('Mark yourself as arrived first', true);
   $('work-submit').disabled = true;
@@ -186,11 +271,21 @@ $('work-submit').onclick = async () => {
     workPhoto = null;
     arrived = false;
     window._arrivedGps = null;
-    selectedRequest = null;
-    $('work-retake').click();
     await loadResidents();
     loadPoints();
     loadLeaderboard();
+    if (selectedResident) {
+      const refreshed = (await (await fetch('/api/requests/area-residents', { headers: { Authorization: 'Bearer ' + WW.getToken() } })).json()).residents;
+      const updated = refreshed.find((r) => r.id === selectedResident.id);
+      if (updated && updated.pending_requests.length) {
+        selectedResident = updated;
+        renderRequestList(updated);
+        selectRequest(0);
+      } else {
+        closeWork();
+        WW.toast('All requests for this resident completed!');
+      }
+    }
   } catch (err) {
     $('work-status').textContent = err.message;
     WW.toast(err.message, true);
