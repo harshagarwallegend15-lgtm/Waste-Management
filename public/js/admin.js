@@ -16,8 +16,11 @@ async function init() {
   WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => { loadLeaderboard(); loadProblems(); });
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'collection_requests' }, () => loadDashboard());
   WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests' }, () => { loadCollections(); loadDashboard(); });
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'society_problems' }, () => { loadProblems(); loadDashboard(); });
+  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_problems' }, () => loadProblems());
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'problem_comments' }, () => loadProblems());
   WWRealtime.subscribe({ event: '*', schema: 'public', table: 'challenge_completions' }, () => loadChallenges());
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'dumping_reports' }, () => { loadReports(); loadDashboard(); });
 }
 
 function showTab(name) {

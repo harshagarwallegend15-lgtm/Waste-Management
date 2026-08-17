@@ -28,7 +28,9 @@ async function init() {
 
   // Live updates
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions', filter: `user_id=eq.${profile.id}` }, () => { loadPoints(); loadLeaderboard(); });
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'collection_requests', filter: `resident_id=eq.${profile.id}` }, () => loadHistory());
   WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests', filter: `resident_id=eq.${profile.id}` }, () => loadHistory());
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'dumping_reports', filter: `resident_id=eq.${profile.id}` }, () => loadMyReports());
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'problem_comments' }, () => loadProblems());
   WWRealtime.subscribe({ event: '*', schema: 'public', table: 'challenge_completions' }, () => loadChallenges());
 
@@ -39,7 +41,7 @@ async function init() {
   WWRealtime.subscribe({ event: '*', schema: 'public', table: 'society_scores' }, () => loadSocieties()).then((s) => {
     if (!s) startSocietyPoll();
   });
-  WWRealtime.subscribe({ event: '*', schema: 'public', table: 'society_problems' }, () => loadSocieties());
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'society_problems', filter: `society_id=eq.${profile.society_id}` }, () => { loadProblems(); loadSocieties(); });
   WWRealtime.subscribe({ event: '*', schema: 'public', table: 'collection_requests' }, () => loadSocieties());
 }
 
