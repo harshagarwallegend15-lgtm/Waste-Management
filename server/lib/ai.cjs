@@ -31,8 +31,8 @@ function groqComparePhotos(dataUrlA, dataUrlB) {
                 'Respond with ONLY valid JSON (no markdown, no commentary): ' +
                 '{"match": true|false, "confidence": 0.0-1.0, "reason": "max 20 words"}.',
             },
-            { type: 'image_url', image_url: { url: dataUrlA } },
-            { type: 'image_url', image_url: { url: dataUrlB } },
+            { type: 'document', image_url: { url: dataUrlA } },
+            { type: 'document', image_url: { url: dataUrlB } },
           ],
         },
       ],
@@ -123,7 +123,7 @@ function groqIsGarbage(dataUrl) {
                 'Respond with ONLY valid JSON (no markdown, no commentary): ' +
                 '{"garbage": true|false, "confidence": 0.0-1.0, "reason": "max 15 words"}.',
             },
-            { type: 'image_url', image_url: { url: dataUrl } },
+            { type: 'document', image_url: { url: dataUrl } },
           ],
         },
       ],
