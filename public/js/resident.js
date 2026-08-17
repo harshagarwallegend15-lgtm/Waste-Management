@@ -61,6 +61,14 @@ function showTab(name) {
 
 $('req-capture').onclick = async () => {
   const shot = await WWCamera.capture($('req-video'));
+  $('req-status').textContent = 'Checking photo…';
+  try {
+    await WWGarbage.checkPhoto(shot.blob, 'before-photo');
+  } catch (e) {
+    WW.toast(e.message, true);
+    $('req-status').textContent = e.message;
+    return;
+  }
   reqPhoto = shot;
   $('req-preview').src = shot.dataUrl;
   $('req-preview').classList.remove('hidden');
@@ -137,6 +145,14 @@ async function loadHistory() {
 
 $('rep-capture').onclick = async () => {
   const shot = await WWCamera.capture($('rep-video'));
+  $('rep-status').textContent = 'Checking photo…';
+  try {
+    await WWGarbage.checkPhoto(shot.blob, 'dumping-photo');
+  } catch (e) {
+    WW.toast(e.message, true);
+    $('rep-status').textContent = e.message;
+    return;
+  }
   repPhoto = shot;
   $('rep-preview').src = shot.dataUrl;
   $('rep-preview').classList.remove('hidden');

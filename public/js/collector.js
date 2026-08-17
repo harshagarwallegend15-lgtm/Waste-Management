@@ -111,6 +111,14 @@ async function markArrived() {
 
 $('work-capture').onclick = async () => {
   const shot = await WWCamera.capture($('work-video'));
+  $('work-status').textContent = 'Checking photo…';
+  try {
+    await WWGarbage.checkPhoto(shot.blob, 'after-photo');
+  } catch (e) {
+    WW.toast(e.message, true);
+    $('work-status').textContent = e.message;
+    return;
+  }
   workPhoto = shot;
   $('work-preview').src = shot.dataUrl;
   $('work-preview').classList.remove('hidden');

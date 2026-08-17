@@ -92,3 +92,26 @@ window.WW = (() => {
 
   return { getToken, getProfile, setSession, clearSession, api, requireRole, logout, escapeHtml, toast, fmtDate, badge };
 })();
+
+// Client-side garbage-photo gate: validates captured images before allowing submit.
+window.WWGarbage = (() => {
+  /**
+   * Check a photo blob against the server's garbage gate.
+   * Returns { ok, score, method } on success.
+   * Throws an error with a user-facing message on rejection.
+   */
+  async function checkPhoto(blob, label) {
+    const fd = new FormData();
+    fd.append('photo', blob, label || 'photo.jpg');
+    if (label) fd.append('label', label);
+    const res = await fetch('/api/garbage/check', { method: 'POST', body: fd });
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok) {
+      const err = new Error(data.error || 'Photo does not look like garbage');
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+  return { checkPhoto };
+})();

@@ -57,6 +57,20 @@ app.use('/api/challenges', require('./routes/challenges.cjs'));
 app.use('/api/societies', require('./routes/societies.cjs').router);
 app.use('/api/admin', require('./routes/admin.cjs'));
 
+// Lightweight garbage-photo check (client-side capture gate)
+const multerGarbage = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+const { assertGarbagePhoto, GateError } = require('./lib/garbage.cjs');
+app.post('/api/garbage/check', multerGarbage.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ ok: false, error: 'No photo provided' });
+  try {
+    const r = await assertGarbagePhoto(req.file.buffer, { label: req.body.label || 'photo' });
+    return res.json({ ok: true, score: r.score, method: r.method });
+  } catch (e) {
+    const status = e instanceof GateError ? e.status || 400 : 400;
+    return res.status(status).json({ ok: false, error: e.message });
+  }
+});
+
 // Public config for the browser (anon key is public by design)
 app.get('/api/config', (req, res) => {
   res.json({
