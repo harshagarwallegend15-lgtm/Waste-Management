@@ -376,6 +376,26 @@ async function foregroundStats(buf) {
 }
 
 /**
+ * Estimate the fraction of skin-tone pixels in an image.
+ * Skin tones in HSV: H 5-35, S > 0.15, V > 0.2, with saturation and value bounds
+ * that cover a range of skin complexions.
+ */
+async function skinToneFraction(buf) {
+  const size = 96;
+  const { data, info } = await prepRGB(buf, size);
+  let skin = 0;
+  let total = 0;
+  for (let i = 0; i < data.length; i += info.channels) {
+    const { h, s, v } = hsv(data[i], data[i + 1], data[i + 2]);
+    total++;
+    if (h >= 5 && h <= 35 && s >= 0.15 && s <= 0.75 && v >= 0.2 && v <= 0.9) {
+      skin++;
+    }
+  }
+  return total > 0 ? skin / total : 0;
+}
+
+/**
  * Classify whether a photo plausibly shows garbage/waste rather than a blank,
  * plain, or unrelated scene. Returns a 0..1 "garbage-likeness" score plus the
  * underlying signals so callers can explain rejections.
@@ -387,11 +407,12 @@ async function foregroundStats(buf) {
  * lib/garbage.cjs catches the cases local signals cannot (selfies, landscapes).
  */
 async function classifyGarbage(buf) {
-  const [edge, tex, fg, cls] = await Promise.all([
+  const [edge, tex, fg, cls, skin] = await Promise.all([
     edgeDensity(buf),
     texture(buf),
     foregroundStats(buf),
     classHistogramRaw(buf),
+    skinToneFraction(buf),
   ]);
 
   let edgeMean = 0;
@@ -423,10 +444,13 @@ async function classifyGarbage(buf) {
     0.10 * variety;
   score = Math.max(0, Math.min(1, score));
 
-  // Hard negatives — these are unambiguous even though the weighted sum may sit
-  // in the ambiguous band for some near-plain images.
   let reason = '';
-  if (fg.fraction < 0.015) {
+
+  // Person/face detection: large skin-tone region → not garbage
+  if (skin > 0.15) {
+    reason = 'Photo appears to contain a person — please photograph only the waste';
+    score = Math.min(score, 0.15);
+  } else if (fg.fraction < 0.015) {
     reason = 'Photo appears empty — no waste visible';
     score = Math.min(score, 0.12);
   } else if (edgeMean < 0.02 && texMean < 0.5) {
@@ -435,6 +459,10 @@ async function classifyGarbage(buf) {
   } else if (fg.distinct < 2 && texMean < 0.8) {
     reason = 'Photo is too uniform to show garbage';
     score = Math.min(score, 0.28);
+  } else if (coloredClasses <= 2 && fg.fraction > 0.4) {
+    // Natural scene: few distinct color classes but large foreground (sky+grass, road, etc.)
+    reason = 'Photo appears to be a landscape — please photograph only the waste';
+    score = Math.min(score, 0.25);
   }
 
   return {
@@ -449,6 +477,7 @@ async function classifyGarbage(buf) {
       gray_share: Number(grayShare.toFixed(3)),
       colored_share: Number(coloredShare.toFixed(3)),
       colored_classes: coloredClasses,
+      skin_fraction: Number(skin.toFixed(3)),
     },
   };
 }
