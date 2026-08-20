@@ -138,17 +138,32 @@ router.get('/me', authRequired, (req, res) => {
 /**
  * POST /api/auth/confirm
  * Verifies email confirmation token from Supabase.
- * Body: { token, type } — token from the confirmation email link.
+ * Body: { token, token_hash, type } — from the confirmation email link.
  */
 router.post('/confirm', async (req, res) => {
   try {
-    const { token, type } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token is required' });
+    const { token, token_hash, type } = req.body;
+    if (!token && !token_hash) return res.status(400).json({ error: 'Token is required' });
 
-    const { data, error } = await admin.auth.verifyOtp({
-      token,
-      type: type || 'signup',
-    });
+    let data, error;
+
+    if (token_hash) {
+      // TokenHash flow (recommended — works with email scanners)
+      const result = await admin.auth.verifyOtp({
+        token_hash,
+        type: type || 'email',
+      });
+      data = result.data;
+      error = result.error;
+    } else if (token) {
+      // Legacy token flow
+      const result = await admin.auth.verifyOtp({
+        token,
+        type: type || 'signup',
+      });
+      data = result.data;
+      error = result.error;
+    }
 
     if (error) return res.status(400).json({ error: 'Invalid or expired confirmation link' });
 
