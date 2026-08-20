@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify Email — WasteWise</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    .confirm-wrap {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 80vh; text-align: center; padding: 2rem;
+    }
+    .confirm-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; padding: 3rem 2.5rem; max-width: 440px; width: 100%;
+      backdrop-filter: blur(20px);
+    }
+    .confirm-card h2 { margin: 0 0 0.8rem; font-size: 1.3rem; }
+    .confirm-card p { color: var(--c-muted); font-size: 0.9rem; margin: 0 0 1.5rem; line-height: 1.6; }
+    .confirm-spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--c-accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .confirm-success { color: var(--c-green); font-size: 0.9rem; margin-top: 0.5rem; }
+    .confirm-error { color: var(--c-red); font-size: 0.85rem; margin-top: 1rem; }
+    .confirm-btn {
+      display: inline-block; margin-top: 1.2rem; padding: 10px 24px;
+      background: var(--c-accent); color: #000; border: none; border-radius: 10px;
+      font-weight: 700; font-size: 0.9rem; cursor: pointer; text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .confirm-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  </style>
+</head>
+<body>
+  <main class="confirm-wrap">
+    <div class="confirm-card">
+      <div class="confirm-spinner" id="spinner"></div>
+      <h2 id="title">Verifying your email...</h2>
+      <p id="msg">Hang tight while we confirm your account.</p>
+      <div id="result"></div>
+    </div>
+  </main>
+
+  <script>
+    (async function () {
+      var spinner = document.getElementById('spinner');
+      var title = document.getElementById('title');
+      var msg = document.getElementById('msg');
+      var result = document.getElementById('result');
+
+      // Extract token from URL hash or query params
+      var hash = window.location.hash.substring(1);
+      var search = window.location.search.substring(1);
+      var allParams = new URLSearchParams(hash + '&' + search);
+      var token = allParams.get('token') || allParams.get('access_token');
+      var type = allParams.get('type') || 'signup';
+      var error = allParams.get('error');
+
+      if (error) {
+        spinner.style.display = 'none';
+        title.textContent = 'Verification failed';
+        msg.textContent = allParams.get('error_description') || error;
+        showRetry();
+        return;
+      }
+
+      if (!token) {
+        spinner.style.display = 'none';
+        title.textContent = 'No verification token';
+        msg.textContent = 'The link seems incomplete. Please check your email and click the verification link again.';
+        showRetry();
+        return;
+      }
+
+      try {
+        var res = await fetch('/api/auth/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token, type: type }),
+        });
+
+        var data = await res.json();
+
+        if (!res.ok) {
+          spinner.style.display = 'none';
+          title.textContent = 'Verification failed';
+          msg.textContent = data.error || 'Invalid or expired link.';
+          showRetry();
+          return;
+        }
+
+        // Success
+        spinner.style.display = 'none';
+        title.textContent = 'Email verified!';
+        result.innerHTML = '<p class="confirm-success">Your account is ready. You can now log in.</p>' +
+          '<a class="confirm-btn" href="/auth/resident.html">Go to Login</a>';
+
+      } catch (e) {
+        spinner.style.display = 'none';
+        title.textContent = 'Something went wrong';
+        msg.textContent = 'Please try again or contact support.';
+        showRetry();
+      }
+
+      function showRetry() {
+        result.innerHTML = '<a class="confirm-btn" href="/">Back to Home</a>';
+      }
+    })();
+  </script>
+</body>
+</html>

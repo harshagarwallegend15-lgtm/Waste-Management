@@ -187,10 +187,33 @@ async function doSignup(e) {
   };
   try {
     const data = await WW.api('/api/auth/register', { method: 'POST', body });
-    WW.toast(_t('auth.accountCreated'));
-    showTab('login');
-    document.getElementById('login-email').value = body.email;
-    document.getElementById('login-password').value = '';
+    // Show email verification message
+    showError('');
+    const signupFormEl = document.getElementById('signup-form');
+    if (signupFormEl) {
+      signupFormEl.classList.add('hidden');
+    }
+    // Show verification prompt
+    const panel = document.querySelector('.auth-panel');
+    if (panel) {
+      const verifyDiv = document.createElement('div');
+      verifyDiv.className = 'verify-email-msg';
+      verifyDiv.innerHTML =
+        '<div style="text-align:center;padding:20px 0;">' +
+          '<div style="font-size:2.5rem;margin-bottom:12px;">✉️</div>' +
+          '<h3 style="margin:0 0 8px;font-size:1.1rem;">Check your email</h3>' +
+          '<p style="color:var(--c-muted);font-size:0.9rem;margin:0 0 6px;line-height:1.5;">We sent a verification link to<br><strong>' + body.email + '</strong></p>' +
+          '<p style="color:var(--c-muted);font-size:0.82rem;margin:0;line-height:1.5;">Click the link in the email to verify your account, then come back and log in.</p>' +
+          '<a href="/auth/' + ROLE + '.html" style="display:inline-block;margin-top:16px;padding:10px 24px;background:var(--c-accent);color:#000;border:none;border-radius:10px;font-weight:700;font-size:0.88rem;cursor:pointer;text-decoration:none;">Back to Login</a>' +
+        '</div>';
+      // Insert after error box
+      const errorBox = document.getElementById('error');
+      if (errorBox && errorBox.nextSibling) {
+        errorBox.parentNode.insertBefore(verifyDiv, errorBox.nextSibling);
+      } else {
+        panel.appendChild(verifyDiv);
+      }
+    }
   } catch (err) {
     showError(err.message);
   }

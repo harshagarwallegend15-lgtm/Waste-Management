@@ -67,12 +67,12 @@ router.post('/register', async (req, res) => {
     }
 
     const { data: authData, error: authError } = await (async () => {
-      // Service role: create + confirm directly (avoids public-signup rate limits).
+      // Service role: create user but require email confirmation.
       if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
         return admin.auth.admin.createUser({
           email,
           password,
-          email_confirm: true,
+          email_confirm: false,
           user_metadata: { role, name },
         });
       }
@@ -115,7 +115,12 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
     const { data, error } = await admin.auth.signInWithPassword({ email, password });
-    if (error) return res.status(401).json({ error: 'Invalid credentials' });
+    if (error) {
+      const msg = error.message.includes('Email not confirmed')
+        ? 'Please verify your email first. Check your inbox for the confirmation link.'
+        : 'Invalid credentials';
+      return res.status(401).json({ error: msg });
+    }
 
     const { data: profile } = await db.from('profiles').select('*').eq('id', data.user.id).single();
     if (!profile || !profile.active) return res.status(403).json({ error: 'Account inactive' });
@@ -128,6 +133,29 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', authRequired, (req, res) => {
   return res.json({ user: req.user, profile: req.profile });
+});
+
+/**
+ * POST /api/auth/confirm
+ * Verifies email confirmation token from Supabase.
+ * Body: { token, type } — token from the confirmation email link.
+ */
+router.post('/confirm', async (req, res) => {
+  try {
+    const { token, type } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    const { data, error } = await admin.auth.verifyOtp({
+      token,
+      type: type || 'signup',
+    });
+
+    if (error) return res.status(400).json({ error: 'Invalid or expired confirmation link' });
+
+    return res.json({ message: 'Email verified successfully', user: data.user });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 module.exports = router;
