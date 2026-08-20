@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20]
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,9 +23,10 @@ jobs:
           for f in $(find server scripts tests api -name '*.cjs' -o -name '*.js' | grep -v node_modules); do node --check "$f"; done
           for f in $(find public/js -name '*.js'); do node --check "$f"; done
       - name: Unit tests (CV matching — no external services)
+        env:
+          SUPABASE_URL: "https://placeholder.supabase.co"
+          SUPABASE_ANON_KEY: "placeholder"
+          SUPABASE_SERVICE_ROLE_KEY: "placeholder"
         run: |
           npm run test:cv
           npm run test:garbage
-
-      # Integration tests (e2e, supplement, challenges) require a live Supabase
-      # project + running server, so they are not run in CI.

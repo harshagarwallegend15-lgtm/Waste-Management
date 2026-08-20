@@ -9,20 +9,28 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn('Supabase not configured — add SUPABASE_URL and SUPABASE_ANON_KEY to .env');
 }
 
-// Auth client — used ONLY for auth operations. Never use it for data queries:
-// once signInWithPassword runs, supabase-js swaps its Authorization header to
-// the signed-in user's token and every subsequent query silently sees 0 rows.
-const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY, {
-  auth: { persistSession: false },
-});
+let _admin, _db, _anon;
 
-// Data client — service-role key, never used for auth, so its header is never
-// swapped. All .from() / .storage() / .rpc() calls must go through this.
-const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY, {
-  auth: { persistSession: false },
-});
+function getAdmin() {
+  if (!_admin) _admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  return _admin;
+}
 
-const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+function getDb() {
+  if (!_db) _db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  return _db;
+}
+
+function getAnon() {
+  if (!_anon) _anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  return _anon;
+}
+
+// Proxy objects that delegate to lazy getters — existing code that reads
+// `admin`, `db`, or `anon` properties will still work without changes.
+const admin = new Proxy({}, { get: (_, key) => Reflect.get(getAdmin(), key) });
+const db    = new Proxy({}, { get: (_, key) => Reflect.get(getDb(), key) });
+const anon  = new Proxy({}, { get: (_, key) => Reflect.get(getAnon(), key) });
 
 function clientWithToken(accessToken) {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -40,7 +48,7 @@ async function requireAuth(req) {
     throw err;
   }
   const token = auth.slice(7);
-  const { data, error } = await admin.auth.getUser(token);
+  const { data, error } = await getAdmin().auth.getUser(token);
   if (error || !data?.user) {
     const err = new Error('Invalid or expired session');
     err.status = 401;
@@ -51,7 +59,7 @@ async function requireAuth(req) {
 
 /** Fetch a profile row (cached per request). */
 async function getProfile(userId) {
-  const { data, error } = await db.from('profiles').select('*').eq('id', userId).single();
+  const { data, error } = await getDb().from('profiles').select('*').eq('id', userId).single();
   if (error) return null;
   return data;
 }
@@ -59,12 +67,12 @@ async function getProfile(userId) {
 /** Upload bytes to Supabase Storage under a folder. Returns public URL or null. */
 async function uploadPhoto(bucket, folder, filename, buffer, contentType) {
   const path = `${folder}/${Date.now()}-${filename}`;
-  const { data, error } = await db.storage.from(bucket).upload(path, buffer, {
+  const { data, error } = await getDb().storage.from(bucket).upload(path, buffer, {
     contentType,
     upsert: false,
   });
   if (error) return null;
-  const { data: pub } = db.storage.from(bucket).getPublicUrl(data.path);
+  const { data: pub } = getDb().storage.from(bucket).getPublicUrl(data.path);
   return pub?.publicUrl || null;
 }
 
@@ -74,15 +82,15 @@ async function uploadPhoto(bucket, folder, filename, buffer, contentType) {
  * frontend, so the bucket must be world-readable. Content is waste/garbage photos.
  */
 async function ensureBucket(name) {
-  const { data } = await db.storage.getBucket(name);
+  const { data } = await getDb().storage.getBucket(name);
   if (data) {
     if (data.public !== true) {
-      await db.storage.updateBucket(name, { public: true });
+      await getDb().storage.updateBucket(name, { public: true });
       console.log(`Storage bucket "${name}" set to public.`);
     }
     return true;
   }
-  const { error } = await db.storage.createBucket(name, { public: true, file_size_limit: 8 * 1024 * 1024 });
+  const { error } = await getDb().storage.createBucket(name, { public: true, file_size_limit: 8 * 1024 * 1024 });
   if (error) {
     console.warn(`Could not auto-create storage bucket "${name}": ${error.message}. Create it manually in Supabase (public bucket).`);
     return false;
