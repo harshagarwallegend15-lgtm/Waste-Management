@@ -127,6 +127,9 @@ router.post(
       if (request.status !== 'pending' && request.status !== 'collected') {
         return res.status(409).json({ error: `Request is already ${request.status}` });
       }
+      if (request.area_id !== req.profile.area_id) {
+        return res.status(403).json({ error: 'This request is not in your assigned area' });
+      }
 
       const afterGpsLat = req.body.gps_lat != null ? Number(req.body.gps_lat) : null;
       const afterGpsLng = req.body.gps_lng != null ? Number(req.body.gps_lng) : null;
