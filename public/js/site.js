@@ -241,6 +241,7 @@
 
     header.innerHTML =
       '<div class="nav-inner">' + brand +
+      '<div class="nav-divider" aria-hidden="true"></div>' +
       '<nav class="site-nav" id="site-nav">' + links + '</nav>' +
       '<div class="nav-right">' + right + burger + '</div>' +
       '</div>';
