@@ -108,6 +108,9 @@
   ];
 
   // ========== INTENT MATCHING ==========
+  // ========== CONVERSATION HISTORY ==========
+  var chatHistory = [];
+
   function findReply(input) {
     var text = input.toLowerCase().replace(/[?!.,]/g, '').trim();
     if (!text) return null;
@@ -286,7 +289,7 @@
       if (!voiceEnabled && synth) { synth.cancel(); speaking = false; document.querySelectorAll('.speaking').forEach(function (el) { el.classList.remove('speaking'); }); }
     });
 
-    // Send message
+    // Send message — tries Groq API first, falls back to local KB
     function sendMessage() {
       var text = input.value.trim();
       if (!text) return;
@@ -294,18 +297,47 @@
       addMessage(text, 'user');
       hideQuickReplies();
 
+      // Add to history
+      chatHistory.push({ role: 'user', content: text });
+
       // Typing indicator
       var typing = addTyping();
 
-      setTimeout(function () {
-        var reply = findReply(text);
+      // Try Groq API first
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text, history: chatHistory.slice(-12) })
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
         typing.remove();
-        var msgEl = addMessage(reply, 'bot');
-        if (voiceEnabled) {
-          var speakBtn = msgEl.querySelector('.chat-speak-btn');
-          speakText(reply, speakBtn);
+        if (data.reply) {
+          chatHistory.push({ role: 'assistant', content: data.reply });
+          var msgEl = addMessage(data.reply, 'bot');
+          if (voiceEnabled) {
+            var speakBtn = msgEl.querySelector('.chat-speak-btn');
+            speakText(data.reply, speakBtn);
+          }
+        } else {
+          // API returned no reply — use local KB
+          fallbackReply(text);
         }
-      }, 600 + Math.random() * 600);
+      })
+      .catch(function () {
+        typing.remove();
+        fallbackReply(text);
+      });
+    }
+
+    function fallbackReply(text) {
+      var reply = findReply(text);
+      chatHistory.push({ role: 'assistant', content: reply });
+      var msgEl = addMessage(reply, 'bot');
+      if (voiceEnabled) {
+        var speakBtn = msgEl.querySelector('.chat-speak-btn');
+        speakText(reply, speakBtn);
+      }
     }
 
     form.addEventListener('submit', function (e) { e.preventDefault(); sendMessage(); });

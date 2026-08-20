@@ -56,6 +56,7 @@ app.use('/api/leaderboard', require('./routes/leaderboard.cjs'));
 app.use('/api/challenges', require('./routes/challenges.cjs'));
 app.use('/api/societies', require('./routes/societies.cjs').router);
 app.use('/api/admin', require('./routes/admin.cjs'));
+app.use('/api/chat', require('./routes/chat.cjs'));
 
 // Lightweight garbage-photo check (client-side capture gate)
 const multerGarbage = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
