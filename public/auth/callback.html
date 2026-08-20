@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing in — WasteWise</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    .callback-wrap {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 80vh; text-align: center; padding: 2rem;
+    }
+    .callback-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; padding: 3rem 2.5rem; max-width: 420px; width: 100%;
+      backdrop-filter: blur(20px);
+    }
+    .callback-card h2 { margin: 0 0 1rem; font-size: 1.3rem; }
+    .callback-card p { color: var(--c-muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
+    .callback-spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--c-accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .callback-error { color: var(--c-red); font-size: 0.85rem; margin-top: 1rem; }
+    .callback-retry {
+      display: inline-block; margin-top: 1rem; padding: 8px 20px;
+      background: var(--c-accent); color: #000; border: none; border-radius: 8px;
+      font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="callback-wrap">
+    <div class="callback-card">
+      <div class="callback-spinner" id="spinner"></div>
+      <h2>Signing you in...</h2>
+      <p>Connecting with Google. This will only take a moment.</p>
+      <div id="status" class="callback-error hidden"></div>
+    </div>
+  </main>
+
+  <script>
+    (async function () {
+      const statusEl = document.getElementById('status');
+      const spinnerEl = document.getElementById('spinner');
+
+      function showError(msg) {
+        spinnerEl.style.display = 'none';
+        statusEl.textContent = msg;
+        statusEl.classList.remove('hidden');
+      }
+
+      // Parse URL hash for tokens
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const error = params.get('error');
+      const errorDesc = params.get('error_description');
+
+      // Get role from query params
+      const urlParams = new URLSearchParams(window.location.search);
+      const role = urlParams.get('role') || 'resident';
+
+      if (error) {
+        showError(errorDesc || error + '. ');
+        const retry = document.createElement('a');
+        retry.href = '/' + role + '.html';
+        retry.className = 'callback-retry';
+        retry.textContent = 'Try again';
+        statusEl.appendChild(retry);
+        return;
+      }
+
+      if (!accessToken) {
+        showError('No authentication token received. ');
+        const retry = document.createElement('a');
+        retry.href = '/' + role + '.html';
+        retry.className = 'callback-retry';
+        retry.textContent = 'Try again';
+        statusEl.appendChild(retry);
+        return;
+      }
+
+      try {
+        // Exchange token with our server to get/create profile
+        const res = await fetch('/api/auth/google/callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: accessToken, role: role }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || 'Authentication failed. ');
+          const retry = document.createElement('a');
+          retry.href = '/' + role + '.html';
+          retry.className = 'callback-retry';
+          retry.textContent = 'Try again';
+          statusEl.appendChild(retry);
+          return;
+        }
+
+        // Store session
+        localStorage.setItem('ww_token', data.session.access_token);
+        localStorage.setItem('ww_profile', JSON.stringify(data.profile));
+
+        // Redirect to appropriate dashboard
+        window.location.href = '/' + data.profile.role + '.html';
+
+      } catch (e) {
+        showError('Something went wrong. Please try again. ');
+        const retry = document.createElement('a');
+        retry.href = '/' + role + '.html';
+        retry.className = 'callback-retry';
+        retry.textContent = 'Try again';
+        statusEl.appendChild(retry);
+      }
+    })();
+  </script>
+</body>
+</html>

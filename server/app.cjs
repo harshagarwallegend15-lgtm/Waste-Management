@@ -47,6 +47,7 @@ app.get(['/health', '/api/health'], (req, res) => {
 
 // API routes
 app.use('/api/auth', require('./routes/auth.cjs'));
+app.use('/api/auth/google', require('./routes/auth-google.cjs'));
 app.use('/api/requests', require('./routes/requests.cjs'));
 app.use('/api/reports', require('./routes/reports.cjs'));
 app.use('/api/problems', require('./routes/problems.cjs'));

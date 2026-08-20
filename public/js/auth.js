@@ -202,4 +202,20 @@ if (ROLE === 'admin') {
   signupForm?.remove();
 }
 
+// ---- Google Sign-In ----
+async function doGoogleLogin() {
+  showError('');
+  try {
+    const res = await fetch('/api/auth/google?role=' + encodeURIComponent(ROLE));
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      showError(data.error || 'Google sign-in unavailable');
+    }
+  } catch (e) {
+    showError('Google sign-in failed. Please try again.');
+  }
+}
+
 loadSocieties();
