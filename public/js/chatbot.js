@@ -303,11 +303,12 @@
       // Typing indicator
       var typing = addTyping();
 
-      // Try Groq API first
+      // Try Groq API first — send current language for multilingual replies
+      var curLang = (window.WWI18n && window.WWI18n.getLang()) || 'en';
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history: chatHistory.slice(-12) })
+        body: JSON.stringify({ message: text, history: chatHistory.slice(-12), lang: curLang })
       })
       .then(function (res) { return res.json(); })
       .then(function (data) {
