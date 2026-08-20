@@ -312,4 +312,15 @@
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
   }
+
+  // --- Inject chatbot CSS + JS ---
+  var chatCSS = document.createElement('link');
+  chatCSS.rel = 'stylesheet';
+  chatCSS.href = '/css/chatbot.css';
+  document.head.appendChild(chatCSS);
+
+  var chatJS = document.createElement('script');
+  chatJS.src = '/js/chatbot.js';
+  chatJS.defer = '';
+  document.body.appendChild(chatJS);
 })();
