@@ -2111,6 +2111,7 @@
     document.documentElement.lang = lang;
     loadFont(lang);
     translateDOM();
+    document.dispatchEvent(new CustomEvent('ww:i18n', { detail: { lang: lang } }));
   }
 
   /* ---- Get language ---- */

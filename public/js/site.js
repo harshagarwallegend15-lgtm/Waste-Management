@@ -152,36 +152,38 @@
     '<span class="brand-text">Waste<span>Wise</span></span></a>';
 
   // Language dropdown (custom, not raw <select>)
-  var curLang = (window.WWI18n && window.WWI18n.getLang()) || 'en';
-  var langs = [
+  var LANGS = [
     { code: 'en', flag: '\uD83C\uDDEC\uD83C\uDDE7', name: 'EN' },
     { code: 'hi', flag: '\uD83C\uDDEE\uD83C\uDDF3', name: '\u0939\u093F' },
     { code: 'kn', flag: '\uD83C\uDDEE\uD83C\uDDF3', name: '\u0C95\u0CA8\u0CCD' },
     { code: 'ta', flag: '\uD83C\uDDEE\uD83C\uDDF3', name: '\u0BA4\u0BAE\u0BBF' },
     { code: 'bn', flag: '\uD83C\uDDEE\uD83C\uDDE7', name: '\u09AC\u09BE\u0982' }
   ];
-  var curFlag = '';
-  var curName = 'EN';
-  for (var li = 0; li < langs.length; li++) {
-    if (langs[li].code === curLang) { curFlag = langs[li].flag; curName = langs[li].name; break; }
-  }
-  var langItems = '';
-  for (var lj = 0; lj < langs.length; lj++) {
-    var l = langs[lj];
-    langItems += '<button class="lang-opt' + (l.code === curLang ? ' active' : '') +
-      '" data-lang="' + l.code + '" onclick="WWI18n.setLang(\'' + l.code + '\')">' +
-      '<span class="lang-opt-flag">' + l.flag + '</span>' +
-      '<span class="lang-opt-name">' + l.name + '</span></button>';
-  }
-  var langDropdown =
-    '<div class="lang-switcher" id="lang-switcher">' +
-      '<button class="lang-trigger" onclick="document.getElementById(\'lang-switcher\').classList.toggle(\'open\')" aria-label="Change language">' +
+
+  function buildLangDropdown() {
+    var curLang = (window.WWI18n && window.WWI18n.getLang()) || 'en';
+    var curFlag = '';
+    var curName = 'EN';
+    for (var li = 0; li < LANGS.length; li++) {
+      if (LANGS[li].code === curLang) { curFlag = LANGS[li].flag; curName = LANGS[li].name; break; }
+    }
+    var langItems = '';
+    for (var lj = 0; lj < LANGS.length; lj++) {
+      var l = LANGS[lj];
+      langItems += '<button class="lang-opt' + (l.code === curLang ? ' active' : '') +
+        '" data-lang="' + l.code + '">' +
+        '<span class="lang-opt-flag">' + l.flag + '</span>' +
+        '<span class="lang-opt-name">' + l.name + '</span></button>';
+    }
+    return '<div class="lang-switcher" id="lang-switcher">' +
+      '<button class="lang-trigger" aria-label="Change language">' +
         ico('globe', 'lang-globe') +
         '<span class="lang-cur">' + curFlag + ' ' + curName + '</span>' +
         '<svg class="lang-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       '</button>' +
       '<div class="lang-dropdown">' + langItems + '</div>' +
     '</div>';
+  }
 
   var socials = function () {
     var icons = [
@@ -196,18 +198,13 @@
     }).join('');
   };
 
-  // Close language dropdown on outside click
-  document.addEventListener('click', function (e) {
-    var sw = document.getElementById('lang-switcher');
-    if (sw && !sw.contains(e.target)) sw.classList.remove('open');
-  });
-
-  // ---- HEADER ----
-  if (header) {
+  // ---- Build header ----
+  function buildHeader() {
+    if (!header) return;
     var page = header.dataset.page || 'landing';
     var links = '';
     var right = '';
-    var burger = '<button class="menu-btn" type="button" aria-label="' + (window.t ? t('nav.toggleMenu') : 'Toggle menu') + '" aria-expanded="false" onclick="WW.toggleNav()"><span class="burger-line"></span><span class="burger-line"></span><span class="burger-line"></span></button>';
+    var burger = '<button class="menu-btn" type="button" aria-label="' + (window.t ? t('nav.toggleMenu') : 'Toggle menu') + '" aria-expanded="false"><span class="burger-line"></span><span class="burger-line"></span><span class="burger-line"></span></button>';
 
     if (page === 'dash') {
       var role = header.dataset.role || '';
@@ -221,21 +218,21 @@
       if (role === 'collector') chip += '<span class="chip-area">\uD83D\uDCCD <span id="nav-area">\u2014</span></span>';
       chip += '<span class="chip-pts">\u2B50 <span id="nav-points">0</span></span></span></span></div>';
       links = '<a class="nav-link" href="/">' + ico('home') + '<span>' + t('nav.home') + '</span></a>';
-      right = chip + langDropdown +
-        '<button class="nav-logout" onclick="WW.logout()">' + ico('logout') + '<span>' + t('nav.logout') + '</span></button>';
+      right = chip + buildLangDropdown() +
+        '<button class="nav-logout">' + ico('logout') + '<span>' + t('nav.logout') + '</span></button>';
     } else if (page === 'auth') {
       links =
         '<a class="nav-link" href="/">' + ico('home') + '<span>' + t('nav.home') + '</span></a>' +
         '<a class="nav-link" href="/#how">' + ico('how') + '<span>' + t('nav.howItWorks') + '</span></a>' +
         '<a class="nav-link" href="/#features">' + ico('features') + '<span>' + t('nav.features') + '</span></a>';
-      right = langDropdown +
+      right = buildLangDropdown() +
         '<a class="btn-ghost btn-nav" href="/#roles">' + ico('back') + '<span>' + t('nav.backToRoles') + '</span></a>';
     } else {
       links =
         '<a class="nav-link" href="#how">' + ico('how') + '<span>' + t('nav.howItWorks') + '</span></a>' +
         '<a class="nav-link" href="#features">' + ico('features') + '<span>' + t('nav.features') + '</span></a>' +
         '<a class="nav-link" href="#stats">' + ico('rewards') + '<span>' + t('nav.rewards') + '</span></a>';
-      right = langDropdown +
+      right = buildLangDropdown() +
         '<div class="nav-sep" aria-hidden="true"></div>' +
         '<a class="btn-cta btn-nav" href="/auth/resident.html">' + t('nav.signIn') + '</a>';
     }
@@ -246,10 +243,13 @@
       '<nav class="site-nav" id="site-nav">' + links + '</nav>' +
       '<div class="nav-right">' + right + burger + '</div>' +
       '</div>';
+
+    bindHeaderEvents();
   }
 
-  // ---- FOOTER ----
-  if (footer) {
+  // ---- Build footer ----
+  function buildFooter() {
+    if (!footer) return;
     var year = new Date().getFullYear();
     footer.innerHTML =
       '<div class="footer-glow"></div>' +
@@ -295,23 +295,79 @@
       '</div>';
   }
 
-  window.WW = window.WW || {};
-  window.WW.toggleNav = function () {
-    var nav = document.getElementById('site-nav');
-    if (!nav) return;
-    var open = nav.classList.toggle('open');
-    var btn = header && header.querySelector('.menu-btn');
-    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  };
+  // ---- Bind header interactive events (after build/rebuild) ----
+  function bindHeaderEvents() {
+    // Burger menu toggle
+    var burgerBtn = header ? header.querySelector('.menu-btn') : null;
+    if (burgerBtn) {
+      burgerBtn.onclick = function () {
+        var nav = document.getElementById('site-nav');
+        if (!nav) return;
+        var open = nav.classList.toggle('open');
+        burgerBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+    }
 
-  // Scroll-aware header
-  if (header) {
-    var onScroll = function () {
-      header.classList.toggle('scrolled', window.scrollY > 20);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    // Logout button
+    var logoutBtn = header ? header.querySelector('.nav-logout') : null;
+    if (logoutBtn) {
+      logoutBtn.onclick = function () { if (window.WW && window.WW.logout) WW.logout(); };
+    }
+
+    // Language switcher: open/close toggle
+    var langSwitcher = document.getElementById('lang-switcher');
+    if (langSwitcher) {
+      var trigger = langSwitcher.querySelector('.lang-trigger');
+      if (trigger) {
+        trigger.onclick = function (e) {
+          e.stopPropagation();
+          langSwitcher.classList.toggle('open');
+        };
+      }
+
+      // Language option click: set language + close dropdown
+      var langOpts = langSwitcher.querySelectorAll('.lang-opt');
+      for (var i = 0; i < langOpts.length; i++) {
+        langOpts[i].addEventListener('click', function (e) {
+          e.stopPropagation();
+          var code = this.getAttribute('data-lang');
+          if (code && window.WWI18n) {
+            window.WWI18n.setLang(code);
+          }
+          langSwitcher.classList.remove('open');
+        });
+      }
+    }
+
+    // Close language dropdown on outside click
+    document.addEventListener('click', function (e) {
+      var sw = document.getElementById('lang-switcher');
+      if (sw && !sw.contains(e.target)) sw.classList.remove('open');
+    });
+
+    // Scroll-aware header
+    if (header) {
+      var onScroll = function () {
+        header.classList.toggle('scrolled', window.scrollY > 20);
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
   }
+
+  // ---- Initial build ----
+  buildHeader();
+  buildFooter();
+
+  // ---- Rebuild on language change ----
+  document.addEventListener('ww:i18n', function () {
+    buildHeader();
+    buildFooter();
+    // Re-translate any data-i18n elements the chatbot may have added
+    if (window.WWI18n && window.WWI18n.translateDOM) {
+      window.WWI18n.translateDOM();
+    }
+  });
 
   // --- Inject chatbot CSS + JS ---
   var chatCSS = document.createElement('link');
