@@ -49,15 +49,15 @@ async function loadDashboard() {
     $('hotspots').innerHTML = hotspots.length
       ? hotspots.map((h) => `
         <div class="card hotspot" style="margin-bottom:10px;">
-          <strong>${h.count} incident${h.count > 1 ? 's' : ''}</strong> ${h.area ? `· ${WW.escapeHtml(h.area)}` : ''}
-          <div class="pin"><a href="https://www.google.com/maps?q=${h.lat},${h.lng}" target="_blank">View on map</a></div>
+          <strong>${h.count} ${h.count > 1 ? t('admin.incidents') : t('admin.incident')}</strong> ${h.area ? `· ${WW.escapeHtml(h.area)}` : ''}
+          <div class="pin"><a href="https://www.google.com/maps?q=${h.lat},${h.lng}" target="_blank">${t('admin.viewOnMap')}</a></div>
           <p class="hint">${h.sample.map((s) => WW.fmtDate(s.timestamp)).join(', ')}</p>
         </div>`).join('')
-      : '<p class="muted">No verified dumping reports yet.</p>';
+      : '<p class="muted">' + t('admin.noVerifiedDumping') + '</p>';
 
     $('trends').innerHTML = `
       <table>
-        <thead><tr><th>Day</th><th>Requests</th><th>Verified</th><th>Reports</th><th>Verified</th></tr></thead>
+        <thead><tr><th>${t('admin.day')}</th><th>${t('admin.requests')}</th><th>${t('admin.verified')}</th><th>${t('admin.reports')}</th><th>${t('admin.verified')}</th></tr></thead>
         <tbody>${trends.map((t) => `
           <tr><td>${t.date}</td><td>${t.requests}</td><td>${t.verified}</td><td>${t.reports}</td><td>${t.verified_reports}</td></tr>`).join('')}
         </tbody>
@@ -74,7 +74,7 @@ async function loadCollections() {
     const rest = collections.filter((c) => c.status !== 'flagged');
     const rows = (arr, label) => arr.length
       ? `<h4 style="margin:12px 0;">${label} (${arr.length})</h4>
-         <table><thead><tr><th>Date</th><th>Resident</th><th>Collector</th><th>Photos</th><th>Score</th><th>Status</th><th>Action</th></tr></thead><tbody>
+         <table><thead><tr><th>${t('admin.date')}</th><th>${t('admin.resident')}</th><th>${t('admin.collector')}</th><th>${t('admin.photos')}</th><th>${t('admin.score')}</th><th>${t('admin.status')}</th><th>${t('admin.action')}</th></tr></thead><tbody>
          ${arr.map((c) => `
            <tr>
              <td>${WW.fmtDate(c.before_timestamp)}</td>
@@ -86,21 +86,21 @@ async function loadCollections() {
              </td>
              <td>${c.match_score != null ? (c.match_score * 100).toFixed(0) + '%' : '—'}</td>
              <td>${WW.badge(c.status)}</td>
-             <td>${c.status === 'flagged' ? `
-               <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="overrideCollection('${c.id}','verified')">✓ Verify</button>
-               <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="overrideCollection('${c.id}','rejected')">✗ Reject</button>` : '—'}</td>
+            <td>${c.status === 'flagged' ? `
+                <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="overrideCollection('${c.id}','verified')">✓ ${t('admin.verifyBtn')}</button>
+                <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="overrideCollection('${c.id}','rejected')">✗ ${t('admin.rejectBtn')}</button>` : '—'}</td>
            </tr>`).join('')}
          </tbody></table>`
       : '<p class="muted">' + label + '.</p>';
-    $('collections-list').innerHTML = rows(flagged, '🔍 Flagged — needs your review') + rows(rest, 'Recent');
+    $('collections-list').innerHTML = rows(flagged, '🔍 ' + t('admin.flaggedPending')) + rows(rest, t('admin.recent'));
   } catch (err) { WW.toast(err.message, true); }
 }
 
 async function overrideCollection(id, verdict) {
-  const reason = prompt(`Reason for ${verdict}?`);
+  const reason = prompt(t('admin.reasonFor') + ' ' + verdict + '?');
   try {
     const data = await WW.api(`/api/admin/collections/${id}/override`, { method: 'POST', body: { verdict, reason } });
-    WW.toast(`Marked ${verdict}. Points: ${data.points ? data.points.length + ' awards' : 'none (already processed)'}`);
+    WW.toast(t('admin.markedResult') + ': ' + verdict + '. Points: ' + (data.points ? data.points.length : '0'));
     loadCollections();
     loadDashboard();
     loadLeaderboard();
@@ -114,7 +114,7 @@ async function loadReports() {
     const { reports } = await WW.api('/api/reports/all');
     $('reports-list').innerHTML = reports.length
       ? `<table>
-          <thead><tr><th>Date</th><th>Reporter</th><th>Photo</th><th>Description</th><th>Status</th><th>Action</th></tr></thead>
+          <thead><tr><th>${t('admin.date')}</th><th>${t('admin.reporter')}</th><th>${t('admin.photos')}</th><th>${t('admin.description2')}</th><th>${t('admin.status')}</th><th>${t('admin.action')}</th></tr></thead>
           <tbody>
           ${reports.map((r) => `
             <tr>
@@ -124,20 +124,20 @@ async function loadReports() {
               <td>${WW.escapeHtml(r.description || '—')}</td>
               <td>${WW.badge(r.status)}</td>
               <td>${r.status === 'pending' ? `
-                <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${r.id}','verified')">✓ Verify</button>
-                <button class="danger" style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${r.id}','rejected')">✗ Reject</button>
-                <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="verifyReport('${r.id}','duplicate')">Duplicate</button>` : '—'}</td>
+                <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${r.id}','verified')">✓ ${t('admin.verifyBtn')}</button>
+                <button class="danger" style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${r.id}','rejected')">✗ ${t('admin.rejectBtn')}</button>
+                <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="verifyReport('${r.id}','duplicate')">${t('admin.duplicateBtn')}</button>` : '—'}</td>
             </tr>`).join('')}
           </tbody></table>`
-      : '<p class="muted">No reports yet.</p>';
+      : '<p class="muted">' + t('admin.noSocietyProblems') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
 }
 
 async function verifyReport(id, verdict) {
-  const reason = prompt(`Reason for ${verdict}?`);
+  const reason = prompt(t('admin.reasonFor') + ' ' + verdict + '?');
   try {
     const data = await WW.api(`/api/reports/${id}/verify`, { method: 'POST', body: { verdict, reason } });
-    WW.toast(`Report ${data.status}. Points awarded: ${data.points ? 'yes (+15)' : 'no'}`);
+    WW.toast(t('admin.reportResult') + ': ' + data.status + '. Points: ' + (data.points ? '+15' : '0'));
     loadReports();
     loadDashboard();
     loadLeaderboard();
@@ -156,10 +156,10 @@ async function loadProblems() {
             <h4 style="flex:1;">${WW.escapeHtml(p.title)}</h4>
             ${WW.badge(p.status)}
           </div>
-          <p class="muted">Society: <b>${WW.escapeHtml(p.societies?.name || '—')}</b>
-            · Society score: <b style="color:var(--green-700);">${p.society_score.toFixed(0)}</b>
-            · Comments: ${p.comment_count}
-            · by ${WW.escapeHtml(p.profiles?.name || '—')} · ${WW.fmtDate(p.created_at)}</p>
+          <p class="muted">${t('admin.societyLabel')}: <b>${WW.escapeHtml(p.societies?.name || '—')}</b>
+            · ${t('admin.societyScore')}: <b style="color:var(--green-700);">${p.society_score.toFixed(0)}</b>
+            · ${t('admin.comments')}: ${p.comment_count}
+            · ${t('admin.by')} ${WW.escapeHtml(p.profiles?.name || '—')} · ${WW.fmtDate(p.created_at)}</p>
           ${p.description ? `<p>${WW.escapeHtml(p.description)}</p>` : ''}
           ${p.photo_url ? `<img class="photo-thumb" src="${p.photo_url}" style="margin-top:6px;" />` : ''}
           <div style="margin-top:10px;">
@@ -176,14 +176,14 @@ async function loadProblems() {
               <button class="${s === 'open' ? '' : 'secondary'}" style="font-size:0.8rem; padding:6px 10px;" onclick="setProblemStatus('${p.id}','${s}')">${s.replace('_', ' ')}</button>`).join('')}
           </div>
         </div>`).join('')
-      : '<p class="muted">No society problems yet.</p>';
+      : '<p class="muted">' + t('admin.noSocietyProblems') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
 }
 
 async function setProblemStatus(id, status) {
   try {
     await WW.api(`/api/problems/${id}/status`, { method: 'POST', body: { status } });
-    WW.toast('Problem status updated');
+    WW.toast(t('admin.problemStatusUpdated'));
     loadProblems();
   } catch (err) { WW.toast(err.message, true); }
 }
@@ -199,8 +199,8 @@ async function loadChallenges() {
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <h4 style="flex:1;">${WW.escapeHtml(c.title)}</h4>
             <span class="badge ${c.challenge_type === 'collections' ? 'blue' : c.challenge_type === 'reports' ? 'red' : c.challenge_type === 'score' ? 'green' : 'amber'}">${WW.escapeHtml(c.challenge_type)}</span>
-            <span class="hint">⏳ ${c.days_left} day${c.days_left === 1 ? '' : 's'} left · +${c.reward_points} pts · ends ${c.ends_at}</span>
-            <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="closeChallenge('${c.id}')">Close</button>
+            <span class="hint">⏳ ${c.days_left} ${t('admin.daysLeft')} · +${c.reward_points} ${t('admin.pts')} · ${t('admin.ends')} ${c.ends_at}</span>
+            <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="closeChallenge('${c.id}')">${t('admin.closeBtn')}</button>
           </div>
           ${c.description ? `<p class="muted">${WW.escapeHtml(c.description)}</p>` : ''}
           ${c.progress_rows.map((r) => {
@@ -209,13 +209,13 @@ async function loadChallenges() {
             <div style="margin:8px 0;">
               <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
                 <span>${WW.escapeHtml(r.society_name)}</span>
-                <span><b>${r.progress} / ${c.target}</b> (${pct}%) ${r.completed ? '· 🎉 completed' : ''}</span>
+                <span><b>${r.progress} / ${c.target}</b> (${pct}%) ${r.completed ? '· 🎉 ' + t('admin.completed') : ''}</span>
               </div>
               <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
             </div>`;
           }).join('')}
         </div>`).join('')
-      : '<p class="muted">No active challenges. Create one above.</p>';
+      : '<p class="muted">' + t('admin.noActiveChallenges') + '</p>';
 
     $('challenges-history').innerHTML = data.history.length
       ? data.history.map((c) => `
@@ -223,7 +223,7 @@ async function loadChallenges() {
           <div class="name" style="flex:1;">${WW.escapeHtml(c.title)} <span class="badge blue">${WW.escapeHtml(c.challenge_type)}</span></div>
           <div class="pts" style="font-size:0.8rem;">${c.status} · ended ${c.ends_at}</div>
         </div>`).join('')
-      : '<p class="muted">No completed or cancelled challenges yet.</p>';
+      : '<p class="muted">' + t('admin.noChallengesYet') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
 }
 
@@ -237,21 +237,21 @@ async function createChallenge() {
     ends_at: $('ch-end').value,
     description: $('ch-desc').value.trim(),
   };
-  if (!body.title) return WW.toast('Title is required', true);
-  if (!body.starts_at || !body.ends_at) return WW.toast('Pick start and end dates', true);
+  if (!body.title) return WW.toast(t('admin.titleRequired'), true);
+  if (!body.starts_at || !body.ends_at) return WW.toast(t('admin.pickDates'), true);
   try {
     const { challenge } = await WW.api('/api/challenges', { method: 'POST', body });
-    WW.toast(`Challenge "${challenge.title}" launched`);
+    WW.toast(t('admin.challengeLaunched'));
     $('ch-title').value = ''; $('ch-desc').value = '';
     loadChallenges();
   } catch (err) { WW.toast(err.message, true); }
 }
 
 async function closeChallenge(id) {
-  if (!confirm('Close this challenge? Active progress is frozen and no further bonuses are paid.')) return;
+  if (!confirm(t('admin.closeChallengeConfirm'))) return;
   try {
     await WW.api('/api/challenges/' + id, { method: 'PATCH', body: { status: 'cancelled' } });
-    WW.toast('Challenge closed');
+    WW.toast(t('admin.challengeClosed'));
     loadChallenges();
   } catch (err) { WW.toast(err.message, true); }
 }
@@ -266,15 +266,15 @@ async function loadLeaderboard() {
         <div class="pos ${i < 3 ? 'top' : ''}">${i + 1}</div>
         <div class="name">${WW.escapeHtml(r.name)}</div>
         <div class="pts">${extra === 'score' ? r.score?.toFixed(0) : r.points}</div>
-      </div>`).join('') || '<p class="muted">Empty</p>';
+      </div>`).join('') || '<p class="muted">' + t('admin.empty') + '</p>';
     $('lb-residents').innerHTML = board(data.residents, 'points');
     $('lb-collectors').innerHTML = board(data.collectors, 'points');
     $('lb-societies').innerHTML = data.societies.map((s, i) => `
       <div class="rank-row">
         <div class="pos ${i < 3 ? 'top' : ''}">${i + 1}</div>
-        <div class="name">${WW.escapeHtml(s.societies?.name || 'Society')}</div>
+        <div class="name">${WW.escapeHtml(s.societies?.name || t('admin.society'))}</div>
         <div class="pts">${s.score?.toFixed(0)}</div>
-      </div>`).join('') || '<p class="muted">No society scores yet</p>';
+      </div>`).join('') || '<p class="muted">' + t('admin.noSocietyScores') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
 }
 
@@ -291,11 +291,11 @@ async function searchUser() {
   const q = $('user-search').value.trim().toLowerCase();
   if (!q) return;
   const matches = (window._allUsers || []).filter((u) => u.name.toLowerCase().includes(q) || u.id.includes(q));
-  if (!matches.length) { $('user-results').innerHTML = '<p class="muted">No users matched.</p>'; return; }
+  if (!matches.length) { $('user-results').innerHTML = '<p class="muted">' + t('admin.noUsersMatched') + '</p>'; return; }
   $('user-results').innerHTML = matches.map((u) => `
     <div class="rank-row">
       <div class="name">${WW.escapeHtml(u.name)} (${u.points} pts)</div>
-      <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="viewUser('${u.id}')">Full trace →</button>
+      <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="viewUser('${u.id}')">${t('admin.fullTrace')} →</button>
     </div>`).join('');
 }
 
@@ -306,33 +306,33 @@ async function viewUser(id) {
     $('user-results').innerHTML = `
       <div class="card" style="margin-top:12px;">
         <h3>${WW.escapeHtml(p.name)} <span class="badge ${p.role === 'admin' ? 'blue' : p.role === 'collector' ? 'amber' : 'green'}">${p.role}</span></h3>
-        <p class="muted">${WW.escapeHtml(p.email)} · ${WW.escapeHtml(p.phone || 'no phone')} · Society: ${WW.escapeHtml(p.societies?.name || '—')} · Area: ${WW.escapeHtml(p.areas?.name || '—')}</p>
-        <p class="muted">Address: ${WW.escapeHtml(p.address_text || '—')} · GPS: ${p.gps_lat != null ? p.gps_lat.toFixed(5) + ', ' + p.gps_lng.toFixed(5) : '—'} · Points: <b>${p.points}</b> · Active: ${p.active}</p>
+        <p class="muted">${WW.escapeHtml(p.email)} · ${WW.escapeHtml(p.phone || t('admin.noPhone'))} · ${t('admin.societyLabel')}: ${WW.escapeHtml(p.societies?.name || '—')} · Area: ${WW.escapeHtml(p.areas?.name || '—')}</p>
+        <p class="muted">${t('admin.address')}: ${WW.escapeHtml(p.address_text || '—')} · ${t('admin.gps')}: ${p.gps_lat != null ? p.gps_lat.toFixed(5) + ', ' + p.gps_lng.toFixed(5) : '—'} · ${t('admin.points')}: <b>${p.points}</b> · ${t('admin.active')}: ${p.active}</p>
 
-        <h4 style="margin-top:14px;">Points ledger</h4>
+        <h4 style="margin-top:14px;">${t('admin.pointsLedger')}</h4>
         ${ledger(p, d.transactions)}
-        <h4 style="margin-top:14px;">Collection requests (${d.requests.length})</h4>
-        ${d.requests.length ? `<table><thead><tr><th>Date</th><th>Status</th><th>Photos</th><th>Score</th></tr></thead><tbody>
+        <h4 style="margin-top:14px;">${t('admin.collectionRequests2')} (${d.requests.length})</h4>
+        ${d.requests.length ? `<table><thead><tr><th>${t('admin.date')}</th><th>${t('admin.status')}</th><th>${t('admin.photos')}</th><th>${t('admin.score')}</th></tr></thead><tbody>
           ${d.requests.map((r) => `<tr>
             <td>${WW.fmtDate(r.before_timestamp)}</td>
             <td>${WW.badge(r.status)}</td>
             <td class="photo-pair">${r.before_photo_url ? `<img class="photo-thumb" src="${r.before_photo_url}"/>` : ''}${r.after_photo_url ? `<img class="photo-thumb" src="${r.after_photo_url}"/>` : ''}</td>
             <td>${r.match_score != null ? (r.match_score * 100).toFixed(0) + '%' : '—'}</td></tr>`).join('')}
-        </tbody></table>` : '<p class="muted">None.</p>'}
-        <h4 style="margin-top:14px;">Dumping reports (${d.reports.length})</h4>
-        ${d.reports.length ? `<table><thead><tr><th>Date</th><th>Status</th><th>Photo</th></tr></thead><tbody>
+        </tbody></table>` : '<p class="muted">' + t('admin.none') + '</p>'}
+        <h4 style="margin-top:14px;">${t('admin.dumpingReports2')} (${d.reports.length})</h4>
+        ${d.reports.length ? `<table><thead><tr><th>${t('admin.date')}</th><th>${t('admin.status')}</th><th>${t('admin.photos')}</th></tr></thead><tbody>
           ${d.reports.map((r) => `<tr><td>${WW.fmtDate(r.created_at)}</td><td>${WW.badge(r.status)}</td><td>${r.photo_url ? `<a href="${r.photo_url}" target="_blank"><img class="photo-thumb" src="${r.photo_url}"/></a>` : '—'}</td></tr>`).join('')}
-        </tbody></table>` : '<p class="muted">None.</p>'}
-        <h4 style="margin-top:14px;">Society problems posted (${d.problems.length})</h4>
-        ${d.problems.length ? d.problems.map((x) => `<p>• ${WW.escapeHtml(x.title)} — ${WW.badge(x.status)}</p>`).join('') : '<p class="muted">None.</p>'}
+        </tbody></table>` : '<p class="muted">' + t('admin.none') + '</p>'}
+        <h4 style="margin-top:14px;">${t('admin.societyProblemsPosted')} (${d.problems.length})</h4>
+        ${d.problems.length ? d.problems.map((x) => `<p>• ${WW.escapeHtml(x.title)} — ${WW.badge(x.status)}</p>`).join('') : '<p class="muted">' + t('admin.none') + '</p>'}
       </div>`;
     $('user-results').scrollIntoView({ behavior: 'smooth' });
   } catch (err) { WW.toast(err.message, true); }
 }
 
 function ledger(p, txns) {
-  if (!txns.length) return '<p class="muted">No transactions.</p>';
-  return `<table><thead><tr><th>Date</th><th>Reason</th><th style="text-align:right;">Δ</th><th>Balance context</th></tr></thead><tbody>
+  if (!txns.length) return '<p class="muted">' + t('admin.noTransactions') + '</p>';
+  return `<table><thead><tr><th>${t('admin.date')}</th><th>${t('admin.reason2')}</th><th style="text-align:right;">Δ</th><th>${t('admin.balanceContext')}</th></tr></thead><tbody>
     ${txns.map((t) => `<tr><td>${WW.fmtDate(t.created_at)}</td><td>${WW.escapeHtml(t.reason)}</td>
       <td style="text-align:right; font-weight:700; color:${t.delta >= 0 ? 'var(--green-600)' : 'var(--red-500)'};">${t.delta >= 0 ? '+' : ''}${t.delta}</td>
       <td class="muted">${t.source_type} #${t.source_id?.slice(0, 8) || ''}</td></tr>`).join('')}

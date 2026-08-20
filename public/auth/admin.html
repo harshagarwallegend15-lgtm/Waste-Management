@@ -13,47 +13,48 @@
     <div class="auth-card">
       <aside class="auth-hero">
         <div class="auth-hero-icon">🏛️</div>
-        <h2>Municipality</h2>
-        <p>Oversee the whole city's collection network — monitor live activity, verify work, review reports and keep every ward accountable.</p>
+        <h2 data-i18n="auth.municipalityTitle">Municipality</h2>
+        <p data-i18n="auth.municipalityDesc">Oversee the whole city's collection network — monitor live activity, verify work, review reports and keep every ward accountable.</p>
         <ul class="auth-hero-points">
-          <li>📊 Live city dashboard</li>
-          <li>✅ Verify collector work</li>
-          <li>📥 Review citizen reports</li>
-          <li>🧾 Manage areas &amp; societies</li>
+          <li data-i18n="auth.adminFeat1">📊 Live city dashboard</li>
+          <li data-i18n="auth.adminFeat2">✅ Verify collector work</li>
+          <li data-i18n="auth.adminFeat3">📥 Review citizen reports</li>
+          <li data-i18n="auth.adminFeat4">🧾 Manage areas &amp; societies</li>
         </ul>
         <div class="auth-hero-glow"></div>
       </aside>
       <div class="auth-panel">
-        <h3>Municipal access <span>🏛️</span></h3>
+        <h3 data-i18n="auth.municipalAccess">Municipal access</h3> <span>🏛️</span>
         <div id="error" class="error-banner hidden"></div>
 
         <!-- LOGIN -->
         <form id="login-form" onsubmit="return doLogin(event)">
           <div class="field">
-            <label>Email</label>
+            <label data-i18n="auth.email">Email</label>
             <div class="input-wrap">
               <span class="input-icon">✉️</span>
               <input type="email" id="login-email" placeholder="admin@example.com" required />
             </div>
           </div>
           <div class="field">
-            <label>Password</label>
+            <label data-i18n="auth.password">Password</label>
             <div class="input-wrap">
               <span class="input-icon">🔒</span>
               <input type="password" id="login-password" placeholder="••••••••" required />
               <button type="button" class="pw-toggle" onclick="togglePw('login-password', this)" aria-label="Toggle password visibility">👁</button>
             </div>
           </div>
-          <button type="submit" class="auth-submit">Login →</button>
+          <button type="submit" class="auth-submit" data-i18n="auth.loginBtn">Login →</button>
           <div class="demo-box">Demo: <code>admin@wastewise.app</code> / <code>Admin@123</code></div>
         </form>
-        <p class="hint" style="margin-top: 14px;">Admin accounts are created by the municipality — no public signup.</p>
+        <p class="hint" style="margin-top: 14px;" data-i18n="auth.adminNoSignup">Admin accounts are created by the municipality — no public signup.</p>
       </div>
     </div>
-    <p class="muted auth-back"><a href="/">← Back to role selection</a></p>
+    <p class="muted auth-back"><a href="/" data-i18n="auth.backToRoles">← Back to role selection</a></p>
   </main>
   <footer class="site-footer" id="site-footer"></footer>
   <script src="/js/api.js"></script>
+  <script src="/js/i18n.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/site.js"></script>
   <script src="/js/gps.js"></script>

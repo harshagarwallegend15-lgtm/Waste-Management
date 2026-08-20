@@ -13,63 +13,63 @@
     <div class="auth-card">
       <aside class="auth-hero">
         <div class="auth-hero-icon">🏠</div>
-        <h2>Resident</h2>
-        <p>Request doorstep collection with photo-verified proof, earn points for every pickup and keep your society sparkling clean.</p>
+        <h2 data-i18n="auth.residentTitle">Resident</h2>
+        <p data-i18n="auth.residentDesc">Request doorstep collection with photo-verified proof, earn points for every pickup and keep your society sparkling clean.</p>
         <ul class="auth-hero-points">
-          <li>📷 Photo-verified pickups</li>
-          <li>⭐ Earn points &amp; rewards</li>
-          <li>🚨 Report illegal dumping</li>
-          <li>🏘️ Post society problems</li>
+          <li data-i18n="auth.residentFeat1">📷 Photo-verified pickups</li>
+          <li data-i18n="auth.residentFeat2">⭐ Earn points &amp; rewards</li>
+          <li data-i18n="auth.residentFeat3">🚨 Report illegal dumping</li>
+          <li data-i18n="auth.residentFeat4">🏘️ Post society problems</li>
         </ul>
         <div class="auth-hero-glow"></div>
       </aside>
       <div class="auth-panel">
-        <h3>Welcome back <span>👋</span></h3>
+        <h3 data-i18n="auth.welcomeBack">Welcome back</h3> <span>👋</span>
         <div class="auth-tabs">
-          <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
-          <button id="tab-signup" onclick="showTab('signup')">Sign up</button>
+          <button id="tab-login" class="active" onclick="showTab('login')" data-i18n="auth.login">Login</button>
+          <button id="tab-signup" onclick="showTab('signup')" data-i18n="auth.signup">Sign up</button>
         </div>
         <div id="error" class="error-banner hidden"></div>
 
         <!-- LOGIN -->
         <form id="login-form" onsubmit="return doLogin(event)">
           <div class="field">
-            <label>Email</label>
+            <label data-i18n="auth.email">Email</label>
             <div class="input-wrap">
               <span class="input-icon">✉️</span>
               <input type="email" id="login-email" placeholder="you@example.com" required />
             </div>
           </div>
           <div class="field">
-            <label>Password</label>
+            <label data-i18n="auth.password">Password</label>
             <div class="input-wrap">
               <span class="input-icon">🔒</span>
               <input type="password" id="login-password" placeholder="••••••••" required />
               <button type="button" class="pw-toggle" onclick="togglePw('login-password', this)" aria-label="Toggle password visibility">👁</button>
             </div>
           </div>
-          <button type="submit" class="auth-submit">Login →</button>
+          <button type="submit" class="auth-submit" data-i18n="auth.loginBtn">Login →</button>
           <div class="demo-box">Demo: <code>resident@wastewise.app</code> / <code>Resident@123</code></div>
         </form>
 
         <!-- SIGNUP -->
         <form id="signup-form" class="hidden" onsubmit="return doSignup(event)">
           <div class="field">
-            <label>Full name</label>
+            <label data-i18n="auth.fullName">Full name</label>
             <div class="input-wrap">
               <span class="input-icon">👤</span>
               <input type="text" id="su-name" placeholder="Your name" required />
             </div>
           </div>
           <div class="field">
-            <label>Email</label>
+            <label data-i18n="auth.email">Email</label>
             <div class="input-wrap">
               <span class="input-icon">✉️</span>
               <input type="email" id="su-email" placeholder="you@example.com" required />
             </div>
           </div>
           <div class="field">
-            <label>Password (min 6 chars)</label>
+            <label data-i18n="auth.passwordMin">Password (min 6 chars)</label>
             <div class="input-wrap">
               <span class="input-icon">🔒</span>
               <input type="password" id="su-password" minlength="6" placeholder="••••••••" required />
@@ -77,46 +77,47 @@
             </div>
           </div>
           <div class="field">
-            <label>Phone</label>
+            <label data-i18n="auth.phone">Phone</label>
             <div class="input-wrap">
               <span class="input-icon">📞</span>
               <input type="tel" id="su-phone" placeholder="+91 …" />
             </div>
           </div>
           <div class="field">
-            <label>Society</label>
+            <label data-i18n="auth.society">Society</label>
             <div class="input-wrap">
               <span class="input-icon">🏘️</span>
               <select id="su-society" required><option value="">Select your society…</option></select>
             </div>
-            <p class="hint" id="su-society-hint">Allow location to see the societies in your city first.</p>
+            <p class="hint" id="su-society-hint" data-i18n="auth.allowLocationHint">Allow location to see the societies in your city first.</p>
           </div>
           <div class="field">
-            <label>House address</label>
+            <label data-i18n="auth.houseAddress">House address</label>
             <div class="input-wrap">
               <span class="input-icon">🏠</span>
               <input type="text" id="su-address" placeholder="Flat no, building, street" required />
             </div>
           </div>
           <div class="field">
-            <label>House location</label>
+            <label data-i18n="auth.houseLocation">House location</label>
             <div style="display: flex; gap: 8px;">
               <div class="input-wrap">
                 <span class="input-icon">📡</span>
                 <input type="text" id="su-gps" placeholder="Not captured yet" readonly />
               </div>
-              <button type="button" class="secondary gps-btn" onclick="captureGps()">📡 Use my location</button>
+              <button type="button" class="secondary gps-btn" onclick="captureGps()" data-i18n="auth.useMyLocation">📡 Use my location</button>
             </div>
-            <p class="hint">Collectors see this location to reach your doorstep.</p>
+            <p class="hint" data-i18n="auth.collectorsSeeLocation">Collectors see this location to reach your doorstep.</p>
           </div>
-          <button type="submit" class="auth-submit">Create account →</button>
+          <button type="submit" class="auth-submit" data-i18n="auth.createAccount">Create account →</button>
         </form>
       </div>
     </div>
-    <p class="muted auth-back"><a href="/">← Back to role selection</a></p>
+    <p class="muted auth-back"><a href="/" data-i18n="auth.backToRoles">← Back to role selection</a></p>
   </main>
   <footer class="site-footer" id="site-footer"></footer>
   <script src="/js/api.js"></script>
+  <script src="/js/i18n.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/site.js"></script>
   <script src="/js/gps.js"></script>

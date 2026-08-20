@@ -12,9 +12,9 @@ async function init() {
 
   try {
     await WWCamera.start($('req-video'));
-    $('req-status').textContent = 'Camera ready. Capture your waste.';
+    $('req-status').textContent = t('res.cameraReady') + '. ' + t('res.createRequestDesc');
   } catch {
-    $('req-status').textContent = 'Camera unavailable — use the capture button if supported, or skip photo.';
+    $('req-status').textContent = t('res.cameraUnavailable');
   }
 
   loadHistory();
@@ -63,7 +63,7 @@ function showTab(name) {
 
 $('req-capture').onclick = async () => {
   const shot = await WWCamera.capture($('req-video'));
-  $('req-status').textContent = 'Checking photo…';
+  $('req-status').textContent = t('res.checkingPhoto');
   try {
     await WWGarbage.checkPhoto(shot.blob, 'before-photo');
   } catch (e) {
@@ -78,7 +78,7 @@ $('req-capture').onclick = async () => {
   $('req-capture').classList.add('hidden');
   $('req-retake').classList.remove('hidden');
   $('req-submit').classList.remove('hidden');
-  $('req-status').textContent = 'Photo captured. Save the request — GPS + timestamp will be attached.';
+  $('req-status').textContent = t('res.photoCaptured');
 };
 
 $('req-retake').onclick = () => {
@@ -91,7 +91,7 @@ $('req-retake').onclick = () => {
 };
 
 $('req-submit').onclick = async () => {
-  if (!reqPhoto) return WW.toast('Capture a photo first', true);
+  if (!reqPhoto) return WW.toast(t('res.capturePhotoFirst'), true);
   $('req-submit').disabled = true;
   try {
     let gps = { lat: profile.gps_lat, lng: profile.gps_lng };
@@ -99,7 +99,7 @@ $('req-submit').onclick = async () => {
       const pos = await WWGps.get();
       gps = { lat: pos.lat, lng: pos.lng };
     } catch {
-      WW.toast('Using saved location (live GPS unavailable)');
+      WW.toast(t('res.usingSavedLocation'));
     }
     const fd = new FormData();
     fd.append('photo', reqPhoto.blob, 'before.jpg');
@@ -107,7 +107,7 @@ $('req-submit').onclick = async () => {
     fd.append('gps_lat', gps.lat);
     fd.append('gps_lng', gps.lng);
     const data = await WW.api('/api/requests', { method: 'POST', form: fd });
-    WW.toast('Request submitted — a collector will pick it up.');
+    WW.toast(t('res.requestSubmitted'));
     $('req-retake').click();
     loadHistory();
   } catch (err) {
@@ -120,12 +120,12 @@ async function loadHistory() {
   try {
     const { requests } = await WW.api('/api/requests/mine');
     if (!requests.length) {
-      $('history-list').innerHTML = '<p class="muted">No requests yet.</p>';
+      $('history-list').innerHTML = '<p class="muted">' + t('res.noRequests') + '</p>';
       return;
     }
     $('history-list').innerHTML = `
       <table>
-        <thead><tr><th>Date</th><th>Type</th><th>Photos</th><th>Status</th><th>Match</th></tr></thead>
+        <thead><tr><th>${t('res.date')}</th><th>${t('res.type')}</th><th>${t('res.photos')}</th><th>${t('res.status')}</th><th>${t('res.match')}</th></tr></thead>
         <tbody>
         ${requests.map((r) => `
           <tr>
@@ -147,7 +147,7 @@ async function loadHistory() {
 
 $('rep-capture').onclick = async () => {
   const shot = await WWCamera.capture($('rep-video'));
-  $('rep-status').textContent = 'Checking photo…';
+  $('rep-status').textContent = t('res.checkingPhoto');
   try {
     await WWGarbage.checkPhoto(shot.blob, 'dumping-photo');
   } catch (e) {
@@ -174,7 +174,7 @@ $('rep-retake').onclick = () => {
 };
 
 $('rep-submit').onclick = async () => {
-  if (!repPhoto) return WW.toast('Capture a photo first', true);
+  if (!repPhoto) return WW.toast(t('res.capturePhotoFirst'), true);
   $('rep-submit').disabled = true;
   try {
     const pos = await WWGps.get();
@@ -184,7 +184,7 @@ $('rep-submit').onclick = async () => {
     fd.append('gps_lng', pos.lng);
     fd.append('description', $('rep-desc').value);
     await WW.api('/api/reports', { method: 'POST', form: fd });
-    WW.toast('Report submitted for verification.');
+    WW.toast(t('res.reportSubmitted'));
     $('rep-retake').click();
     $('rep-desc').value = '';
     loadMyReports();
@@ -197,10 +197,10 @@ $('rep-submit').onclick = async () => {
 async function loadMyReports() {
   try {
     const { reports } = await WW.api('/api/reports/mine');
-    if (!reports.length) { $('my-reports').innerHTML = '<p class="muted">No reports yet.</p>'; return; }
+    if (!reports.length) { $('my-reports').innerHTML = '<p class="muted">' + t('res.noReports') + '</p>'; return; }
     $('my-reports').innerHTML = `
       <table>
-        <thead><tr><th>Date</th><th>Status</th><th>Reward</th></tr></thead>
+        <thead><tr><th>${t('res.date')}</th><th>${t('res.status')}</th><th>${t('res.reward')}</th></tr></thead>
         <tbody>${reports.map((r) => `
           <tr>
             <td>${WW.fmtDate(r.created_at)}</td>
@@ -216,7 +216,7 @@ async function loadMyReports() {
 
 async function postProblem() {
   const title = $('pb-title').value.trim();
-  if (!title) return WW.toast('Title is required', true);
+  if (!title) return WW.toast(t('res.titleRequired'), true);
   const file = $('pb-photo').files[0];
   const fd = new FormData();
   fd.append('title', title);
@@ -224,7 +224,7 @@ async function postProblem() {
   if (file) fd.append('photo', file);
   try {
     await WW.api('/api/problems', { method: 'POST', form: fd });
-    WW.toast('Problem posted to your society board.');
+    WW.toast(t('res.problemPosted'));
     $('pb-title').value = ''; $('pb-desc').value = ''; $('pb-photo').value = '';
     loadProblems();
   } catch (err) { WW.toast(err.message, true); }
@@ -243,7 +243,7 @@ async function commentOn(problemId, inputEl) {
 async function loadProblems() {
   try {
     const { problems } = await WW.api('/api/problems/society');
-    if (!problems.length) { $('problems-list').innerHTML = '<p class="muted">No problems posted yet in your society.</p>'; return; }
+    if (!problems.length) { $('problems-list').innerHTML = '<p class="muted">' + t('res.noProblems') + '</p>'; return; }
     $('problems-list').innerHTML = problems.map((p) => `
       <div class="card" style="margin-bottom: 12px;">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -251,7 +251,7 @@ async function loadProblems() {
         </div>
         ${p.photo_url ? `<img class="photo-thumb" src="${p.photo_url}" style="margin:8px 0;" />` : ''}
         ${p.description ? `<p class="muted">${WW.escapeHtml(p.description)}</p>` : ''}
-        <p class="hint" style="margin:6px 0;">Posted by ${WW.escapeHtml(p.profiles?.name || 'resident')} · ${WW.fmtDate(p.created_at)}</p>
+        <p class="hint" style="margin:6px 0;">${t('res.postedBy')} ${WW.escapeHtml(p.profiles?.name || t('res.resident'))} · ${WW.fmtDate(p.created_at)}</p>
         <div style="margin-top:8px;">
           ${(p.comments || []).map((c) => `
             <div style="background:var(--bg); border-radius:8px; padding:8px 12px; margin-bottom:6px;">
@@ -260,8 +260,8 @@ async function loadProblems() {
               <div style="font-size:0.9rem;">${WW.escapeHtml(c.content)}</div>
             </div>`).join('')}
           <div style="display:flex; gap:8px; margin-top:8px;">
-            <input id="cmt-${p.id}" placeholder="Add a comment…" onkeydown="if(event.key==='Enter')commentOn('${p.id}', this)" />
-            <button class="secondary" onclick="commentOn('${p.id}', document.getElementById('cmt-${p.id}'))">Comment</button>
+            <input id="cmt-${p.id}" placeholder="${t('res.addComment')}" onkeydown="if(event.key==='Enter')commentOn('${p.id}', this)" />
+            <button class="secondary" onclick="commentOn('${p.id}', document.getElementById('cmt-${p.id}'))">${t('res.commentBtn')}</button>
           </div>
         </div>
       </div>`).join('');
@@ -274,7 +274,7 @@ async function loadChallenges() {
   try {
     const data = await WW.api('/api/challenges');
     if (!data.active.length) {
-      $('challenges-active').innerHTML = '<p class="muted">No active challenges right now — check back soon.</p>';
+      $('challenges-active').innerHTML = '<p class="muted">' + t('res.noActiveChallenges') + '</p>';
     } else {
       $('challenges-active').innerHTML = data.active.map((c) => {
         const row = c.progress_rows[0];
@@ -285,29 +285,29 @@ async function loadChallenges() {
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <h4 style="flex:1;">${WW.escapeHtml(c.title)} ${done ? WW.badge('completed') : ''}</h4>
             <span class="badge ${c.challenge_type === 'collections' ? 'blue' : c.challenge_type === 'reports' ? 'red' : c.challenge_type === 'score' ? 'green' : 'amber'}">${WW.escapeHtml(c.challenge_type)}</span>
-            <span class="hint">⏳ ${c.days_left} day${c.days_left === 1 ? '' : 's'} left · +${c.reward_points} pts bonus</span>
+            <span class="hint">⏳ ${c.days_left} ${t('res.left')} · +${c.reward_points} ${t('res.ptsBonus')}</span>
           </div>
           ${c.description ? `<p class="muted">${WW.escapeHtml(c.description)}</p>` : ''}
           <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
-          <p class="hint" style="margin-top:6px;">${WW.escapeHtml(row?.society_name || 'Your society')}: <b>${row ? row.progress : 0} / ${c.target}</b> (${pct}%) ${done ? '· 🎉 Bonus paid to every resident!' : '· keep participating to unlock'}</p>
+          <p class="hint" style="margin-top:6px;">${WW.escapeHtml(row?.society_name || t('res.yourSociety'))}: <b>${row ? row.progress : 0} / ${c.target}</b> (${pct}%) ${done ? '· 🎉 ' + t('res.bonusPaid') : '· ' + t('res.keepParticipating')}</p>
         </div>`;
       }).join('');
     }
 
     $('challenges-history').innerHTML = data.history.length
-      ? `<table><thead><tr><th>Challenge</th><th>Type</th><th>Outcome</th></tr></thead><tbody>
+      ? `<table><thead><tr><th>${t('res.challenge')}</th><th>${t('res.type')}</th><th>${t('res.outcome')}</th></tr></thead><tbody>
           ${data.history.map((c) => {
             const row = c.progress_rows[0];
             return `<tr>
               <td>${WW.escapeHtml(c.title)}</td>
               <td><span class="badge blue">${WW.escapeHtml(c.challenge_type)}</span></td>
               <td>${row?.completed
-                ? WW.badge('completed') + ' +' + c.reward_points + ' pts bonus'
-                : '<span class="muted">Not reached (' + (row ? row.progress : 0) + ' / ' + c.target + ')</span>'}</td>
+                ? WW.badge('completed') + ' +' + c.reward_points + ' ' + t('res.ptsBonus')
+                : '<span class="muted">' + t('res.notReached') + ' (' + (row ? row.progress : 0) + ' / ' + c.target + ')</span>'}</td>
             </tr>`;
           }).join('')}
         </tbody></table>`
-      : '<p class="muted">No completed challenges yet.</p>';
+      : '<p class="muted">' + t('res.noCompletedChallenges') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
 }
 
@@ -319,12 +319,12 @@ async function loadPoints() {
     $('nav-points').textContent = points;
     $('side-points').textContent = points;
     $('points-list').innerHTML = transactions.length
-      ? `<table><thead><tr><th>Date</th><th>Reason</th><th style="text-align:right;">Δ</th></tr></thead><tbody>
+      ? `<table><thead><tr><th>${t('res.date')}</th><th>${t('res.reason')}</th><th style="text-align:right;">Δ</th></tr></thead><tbody>
           ${transactions.map((t) => `
             <tr><td>${WW.fmtDate(t.created_at)}</td><td>${WW.escapeHtml(t.reason)}</td>
             <td style="text-align:right; font-weight:700; color:${t.delta >= 0 ? 'var(--green-600)' : 'var(--red-500)'};">${t.delta >= 0 ? '+' : ''}${t.delta}</td></tr>`).join('')}
         </tbody></table>`
-      : '<p class="muted">No points yet — complete a verified collection.</p>';
+      : '<p class="muted">' + t('res.noPointsYet') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
 }
 
@@ -339,7 +339,7 @@ async function loadLeaderboard() {
           <div class="name">${WW.escapeHtml(r.name)}</div>
           <div class="pts">${r.points}</div>
         </div>`).join('')
-      : '<p class="muted">No residents yet.</p>';
+      : '<p class="muted">' + t('res.noResidentsYet') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
 }
 
@@ -350,14 +350,14 @@ async function loadEducation() {
     const { lesson, stats } = await WW.api('/api/education/for-me');
     const banner = $('education-banner');
     if (stats.improved) {
-      banner.innerHTML = `<strong>🎉 Recognition:</strong> Your recent collections are properly segregated — great improvement! Your society's score thanks you.`;
+      banner.innerHTML = `<strong>🎉 ${t('res.recognition')}:</strong> ${t('res.recognitionDesc')}`;
       banner.classList.remove('hidden');
       return;
     }
     if (lesson.trigger_type !== 'default') {
       banner.innerHTML = `<strong>🧠 ${WW.escapeHtml(lesson.title)}</strong>
         <div class="muted" style="white-space:pre-line; margin-top:6px;">${WW.escapeHtml(lesson.content)}</div>
-        <button class="secondary" style="margin-top:10px; font-size:0.85rem; padding:6px 12px;" onclick="dismissEducation()">Got it, thanks</button>`;
+        <button class="secondary" style="margin-top:10px; font-size:0.85rem; padding:6px 12px;" onclick="dismissEducation()">${t('res.gotIt')}</button>`;
       banner.classList.remove('hidden');
     }
   } catch {}
@@ -379,7 +379,7 @@ function fmtKm(d) {
 async function loadSocieties() {
   try {
     const status = $('society-loc-status');
-    if (status) status.textContent = 'Tracing your location to find societies in your city…';
+    if (status) status.textContent = t('res.locatingSocieties');
 
     let origin = null;
     try {
@@ -393,30 +393,30 @@ async function loadSocieties() {
     const qs = origin ? `?lat=${origin.lat}&lng=${origin.lng}` : '';
     const { societies, city_radius_km, region } = await WW.api('/api/societies/nearby' + qs);
     if (status) status.textContent = origin
-      ? `📍 Located you — ${societies.length} society${societies.length === 1 ? '' : 's'} within ${city_radius_km ?? 'your'} km, nearest first.`
-      : 'Allow location to see the societies in your city — your society is shown below.';
+      ? '📍 ' + t('res.locatingSocieties') + ` — ${societies.length}`
+      : t('res.noSocietiesInCity');
 
     renderMySociety(societies, region);
     renderSocietyList(societies, region);
   } catch (err) {
-    $('my-society').innerHTML = '<p class="muted">Could not load societies: ' + WW.escapeHtml(err.message) + '</p>';
+    $('my-society').innerHTML = '<p class="muted">' + WW.escapeHtml(err.message) + '</p>';
     $('societies-list').innerHTML = '';
   }
 }
 
 function scoreBadge(score) {
-  if (score == null) return '<span class="badge gray">No score yet</span>';
+  if (score == null) return '<span class="badge gray">' + t('res.noScoreYet') + '</span>';
   const cls = score >= 70 ? 'green' : score >= 45 ? 'amber' : 'red';
-  return `<span class="badge ${cls}">Score ${Math.round(score)}/100</span>`;
+    return `<span class="badge ${cls}">${t('res.score')} ${Math.round(score)}/100</span>`;
 }
 
 function societyStats(s) {
   return `
     <div class="soc-meta">
       <span title="Residents">👥 <b>${s.members}</b></span>
-      <span title="Open problems">🚧 <b>${s.open_problems}</b> open</span>
-      <span title="Pending pickups">📦 <b>${s.pending_requests}</b> pending</span>
-      <span title="Verified today">✅ <b>${s.verified_today}</b> collected today</span>
+      <span title="${t('res.open')}">🚧 <b>${s.open_problems}</b> ${t('res.open')}</span>
+      <span title="${t('res.pending')}">📦 <b>${s.pending_requests}</b> ${t('res.pending')}</span>
+      <span title="${t('res.collectedToday')}">✅ <b>${s.verified_today}</b> ${t('res.collectedToday')}</span>
     </div>`;
 }
 
@@ -428,19 +428,19 @@ function renderMySociety(list, region) {
       ? `<div class="society-card mine">
           <div class="soc-head">
             <div>
-              <h4 style="margin:0;">📍 ${WW.escapeHtml(region.name)} <span class="badge green">Your area</span></h4>
-              <p class="hint" style="margin:4px 0 0;">No society is registered in your area yet — join one from the list below when it appears.</p>
+              <h4 style="margin:0;">📍 ${WW.escapeHtml(region.name)} <span class="badge green">${t('res.yourArea')}</span></h4>
+              <p class="hint" style="margin:4px 0 0;">${t('res.joinAreaHint')}</p>
             </div>
           </div>
         </div>`
-      : `<p class="muted">You are not in a society yet — pick one from the list below.</p>`;
+      : `<p class="muted">${t('res.notInSociety')}</p>`;
     return;
   }
   el.innerHTML = `
     <div class="society-card mine">
       <div class="soc-head">
         <div>
-          <h4 style="margin:0;">${WW.escapeHtml(mine.name)} <span class="badge green">Your society</span></h4>
+          <h4 style="margin:0;">${WW.escapeHtml(mine.name)} <span class="badge green">${t('res.yourSocietyBadge')}</span></h4>
           <p class="hint" style="margin:4px 0 0;">
             ${WW.escapeHtml(mine.area || '')}${mine.address ? ' · ' + WW.escapeHtml(mine.address) : ''}
             ${mine.distance_km != null ? ' · 📍 ' + fmtKm(mine.distance_km) + ' away' : ''}
@@ -449,7 +449,7 @@ function renderMySociety(list, region) {
         <div class="soc-head-right">${scoreBadge(mine.score)}</div>
       </div>
       ${societyStats(mine)}
-      <p class="hint" style="margin-top:10px;">Problems posted on the 🏘️ Society problems tab, challenges and the society score all belong to this society.</p>
+      <p class="hint" style="margin-top:10px;">${t('res.problemsHint')}</p>
     </div>`;
 }
 
@@ -457,8 +457,8 @@ function renderSocietyList(list, region) {
   const el = $('societies-list');
   if (!list.length) {
     el.innerHTML = region
-      ? `<p class="muted">No society is registered in <b>${WW.escapeHtml(region.name)}</b> yet. Enable location to find societies nearby.</p>`
-      : '<p class="muted">No societies registered in your city yet. Enable location to find them.</p>';
+      ? `<p class="muted">${t('res.noSocietyInRegion')} <b>${WW.escapeHtml(region.name)}</b></p>`
+      : '<p class="muted">' + t('res.noSocietiesInCity') + '</p>';
     return;
   }
   el.innerHTML = list.map((s) => {
@@ -477,7 +477,7 @@ function renderSocietyList(list, region) {
           ${scoreBadge(s.score)}
           ${isMine
             ? ''
-            : `<button class="secondary switch-btn" onclick="switchSociety('${s.id}')">Join</button>`}
+            : `<button class="secondary switch-btn" onclick="switchSociety('${s.id}')">${t('res.joined')}</button>`}
         </div>
       </div>
       ${societyStats(s)}
@@ -492,7 +492,7 @@ async function switchSociety(societyId) {
       method: 'PATCH',
       body: { society_id: societyId, gps_lat: _societyOrigin?.lat ?? null, gps_lng: _societyOrigin?.lng ?? null },
     });
-    WW.toast(`Joined ${society_name}! Your society info is updated.`);
+    WW.toast(t('res.joined') + ' ' + society_name + '!');
     WW.setSession(WW.getToken(), updated);
     setTimeout(() => location.reload(), 900);
   } catch (err) {

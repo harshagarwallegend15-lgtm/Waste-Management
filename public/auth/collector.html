@@ -13,63 +13,63 @@
     <div class="auth-card">
       <aside class="auth-hero">
         <div class="auth-hero-icon">🚛</div>
-        <h2>Collector</h2>
-        <p>Receive verified collection tasks near you, upload photo proof on the spot and grow your reputation with every completed pickup.</p>
+        <h2 data-i18n="auth.collectorTitle">Collector</h2>
+        <p data-i18n="auth.collectorDesc">Receive verified collection tasks near you, upload photo proof on the spot and grow your reputation with every completed pickup.</p>
         <ul class="auth-hero-points">
-          <li>📋 Claim scheduled pickups</li>
-          <li>📸 Instant photo verification</li>
-          <li>🏆 Boost your rating &amp; rank</li>
-          <li>🗺️ Smart route by area</li>
+          <li data-i18n="auth.collectorFeat1">📋 Claim scheduled pickups</li>
+          <li data-i18n="auth.collectorFeat2">📸 Instant photo verification</li>
+          <li data-i18n="auth.collectorFeat3">🏆 Boost your rating &amp; rank</li>
+          <li data-i18n="auth.collectorFeat4">🗺️ Smart route by area</li>
         </ul>
         <div class="auth-hero-glow"></div>
       </aside>
       <div class="auth-panel">
-        <h3>Welcome back <span>👋</span></h3>
+        <h3 data-i18n="auth.welcomeBack">Welcome back</h3> <span>👋</span>
         <div class="auth-tabs">
-          <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
-          <button id="tab-signup" onclick="showTab('signup')">Sign up</button>
+          <button id="tab-login" class="active" onclick="showTab('login')" data-i18n="auth.login">Login</button>
+          <button id="tab-signup" onclick="showTab('signup')" data-i18n="auth.signup">Sign up</button>
         </div>
         <div id="error" class="error-banner hidden"></div>
 
         <!-- LOGIN -->
         <form id="login-form" onsubmit="return doLogin(event)">
           <div class="field">
-            <label>Email</label>
+            <label data-i18n="auth.email">Email</label>
             <div class="input-wrap">
               <span class="input-icon">✉️</span>
               <input type="email" id="login-email" placeholder="you@example.com" required />
             </div>
           </div>
           <div class="field">
-            <label>Password</label>
+            <label data-i18n="auth.password">Password</label>
             <div class="input-wrap">
               <span class="input-icon">🔒</span>
               <input type="password" id="login-password" placeholder="••••••••" required />
               <button type="button" class="pw-toggle" onclick="togglePw('login-password', this)" aria-label="Toggle password visibility">👁</button>
             </div>
           </div>
-          <button type="submit" class="auth-submit">Login →</button>
+          <button type="submit" class="auth-submit" data-i18n="auth.loginBtn">Login →</button>
           <div class="demo-box">Demo: <code>collector@wastewise.app</code> / <code>Collector@123</code></div>
         </form>
 
         <!-- SIGNUP -->
         <form id="signup-form" class="hidden" onsubmit="return doSignup(event)">
           <div class="field">
-            <label>Full name</label>
+            <label data-i18n="auth.fullName">Full name</label>
             <div class="input-wrap">
               <span class="input-icon">👤</span>
               <input type="text" id="su-name" placeholder="Your name" required />
             </div>
           </div>
           <div class="field">
-            <label>Email</label>
+            <label data-i18n="auth.email">Email</label>
             <div class="input-wrap">
               <span class="input-icon">✉️</span>
               <input type="email" id="su-email" placeholder="you@example.com" required />
             </div>
           </div>
           <div class="field">
-            <label>Password (min 6 chars)</label>
+            <label data-i18n="auth.passwordMin">Password (min 6 chars)</label>
             <div class="input-wrap">
               <span class="input-icon">🔒</span>
               <input type="password" id="su-password" minlength="6" placeholder="••••••••" required />
@@ -77,21 +77,22 @@
             </div>
           </div>
           <div class="field">
-            <label>Phone</label>
+            <label data-i18n="auth.phone">Phone</label>
             <div class="input-wrap">
               <span class="input-icon">📞</span>
               <input type="tel" id="su-phone" placeholder="+91 …" />
             </div>
           </div>
-          <p class="hint">Your work area is assigned automatically by the system based on collection load.</p>
-          <button type="submit" class="auth-submit">Create account →</button>
+          <p class="hint" data-i18n="auth.areaAssignedHint">Your work area is assigned automatically by the system based on collection load.</p>
+          <button type="submit" class="auth-submit" data-i18n="auth.createAccount">Create account →</button>
         </form>
       </div>
     </div>
-    <p class="muted auth-back"><a href="/">← Back to role selection</a></p>
+    <p class="muted auth-back"><a href="/" data-i18n="auth.backToRoles">← Back to role selection</a></p>
   </main>
   <footer class="site-footer" id="site-footer"></footer>
   <script src="/js/api.js"></script>
+  <script src="/js/i18n.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/site.js"></script>
   <script src="/js/gps.js"></script>

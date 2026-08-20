@@ -12,35 +12,35 @@
 
   <main class="dash">
     <div class="page-tabs">
-      <button data-tab="overview" class="active" onclick="showTab('overview')">📊 Overview</button>
-      <button data-tab="verifications" onclick="showTab('verifications')">🔍 Verifications</button>
-      <button data-tab="reports" onclick="showTab('reports')">🚨 Dumping reports</button>
-      <button data-tab="problems" onclick="showTab('problems')">🏘️ Problems</button>
-      <button data-tab="challenges" onclick="showTab('challenges')">🏆 Challenges</button>
-      <button data-tab="leaderboard" onclick="showTab('leaderboard')">📈 Leaderboards</button>
-      <button data-tab="users" onclick="showTab('users')">👥 Users & trace</button>
+      <button data-tab="overview" class="active" onclick="showTab('overview')" data-i18n="admin.tabOverview">📊 Overview</button>
+      <button data-tab="verifications" onclick="showTab('verifications')" data-i18n="admin.tabVerifications">🔍 Verifications</button>
+      <button data-tab="reports" onclick="showTab('reports')" data-i18n="admin.tabReports">🚨 Dumping reports</button>
+      <button data-tab="problems" onclick="showTab('problems')" data-i18n="admin.tabProblems">🏘️ Problems</button>
+      <button data-tab="challenges" onclick="showTab('challenges')" data-i18n="admin.tabChallenges">🏆 Challenges</button>
+      <button data-tab="leaderboard" onclick="showTab('leaderboard')" data-i18n="admin.tabLeaderboard">📈 Leaderboards</button>
+      <button data-tab="users" onclick="showTab('users')" data-i18n="admin.tabUsers">👥 Users & trace</button>
     </div>
 
     <!-- OVERVIEW -->
     <section id="tab-overview">
       <div class="grid grid-3" id="kpi-grid" style="margin-bottom:16px;">
-        <div class="card kpi"><div class="num" id="kpi-residents">—</div><div class="lab">Residents</div></div>
-        <div class="card kpi"><div class="num" id="kpi-collectors">—</div><div class="lab">Collectors</div></div>
-        <div class="card kpi"><div class="num" id="kpi-requests">—</div><div class="lab">Collection requests</div></div>
-        <div class="card kpi"><div class="num" id="kpi-verified">—</div><div class="lab">Verified collections</div></div>
-        <div class="card kpi"><div class="num" id="kpi-flagged">—</div><div class="lab">Flagged (needs review)</div></div>
-        <div class="card kpi"><div class="num" id="kpi-reports">—</div><div class="lab">Pending reports</div></div>
-        <div class="card kpi"><div class="num" id="kpi-verified-reports">—</div><div class="lab">Verified reports</div></div>
-        <div class="card kpi"><div class="num" id="kpi-problems">—</div><div class="lab">Open problems</div></div>
+        <div class="card kpi"><div class="num" id="kpi-residents">—</div><div class="lab" data-i18n="admin.kpiResidents">Residents</div></div>
+        <div class="card kpi"><div class="num" id="kpi-collectors">—</div><div class="lab" data-i18n="admin.kpiCollectors">Collectors</div></div>
+        <div class="card kpi"><div class="num" id="kpi-requests">—</div><div class="lab" data-i18n="admin.kpiRequests">Collection requests</div></div>
+        <div class="card kpi"><div class="num" id="kpi-verified">—</div><div class="lab" data-i18n="admin.kpiVerified">Verified collections</div></div>
+        <div class="card kpi"><div class="num" id="kpi-flagged">—</div><div class="lab" data-i18n="admin.kpiFlagged">Flagged (needs review)</div></div>
+        <div class="card kpi"><div class="num" id="kpi-reports">—</div><div class="lab" data-i18n="admin.kpiPendingReports">Pending reports</div></div>
+        <div class="card kpi"><div class="num" id="kpi-verified-reports">—</div><div class="lab" data-i18n="admin.kpiVerifiedReports">Verified reports</div></div>
+        <div class="card kpi"><div class="num" id="kpi-problems">—</div><div class="lab" data-i18n="admin.kpiProblems">Open problems</div></div>
       </div>
 
       <div class="grid grid-2">
         <div class="card">
-          <h3>🔥 Dumping hotspots (verified)</h3>
+          <h3 data-i18n="admin.dumpingHotspots">🔥 Dumping hotspots (verified)</h3>
           <div id="hotspots"><p class="muted">Loading…</p></div>
         </div>
         <div class="card">
-          <h3>📈 14-day trends</h3>
+          <h3 data-i18n="admin.trends14Day">📈 14-day trends</h3>
           <div id="trends"><p class="muted">Loading…</p></div>
         </div>
       </div>
@@ -49,7 +49,7 @@
     <!-- VERIFICATIONS -->
     <section id="tab-verifications" class="hidden">
       <div class="card">
-        <div class="section-title" style="margin-top:0;"><span>Collection requests — flagged & pending</span><button class="secondary" onclick="loadCollections()">↻ Refresh</button></div>
+        <div class="section-title" style="margin-top:0;"><span data-i18n="admin.flaggedPending">Collection requests — flagged & pending</span><button class="secondary" onclick="loadCollections()">↻ Refresh</button></div>
         <div id="collections-list"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -57,7 +57,7 @@
     <!-- REPORTS -->
     <section id="tab-reports" class="hidden">
       <div class="card">
-        <div class="section-title" style="margin-top:0;"><span>Dumping reports</span><button class="secondary" onclick="loadReports()">↻ Refresh</button></div>
+        <div class="section-title" style="margin-top:0;"><span data-i18n="admin.dumpingReports">Dumping reports</span><button class="secondary" onclick="loadReports()">↻ Refresh</button></div>
         <div id="reports-list"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -66,10 +66,10 @@
     <section id="tab-problems" class="hidden">
       <div class="card">
         <div class="section-title" style="margin-top:0;">
-          <span>Society problems — ranked by society score</span>
+          <span data-i18n="admin.societyProblemsRanked">Society problems — ranked by society score</span>
           <button class="secondary" onclick="loadProblems()">↻ Refresh</button>
         </div>
-        <p class="muted" style="margin-bottom:14px;">Problems from higher-scoring societies surface first, so well-run societies' issues get priority attention.</p>
+        <p class="muted" style="margin-bottom:14px;" data-i18n="admin.societyProblemsDesc">Problems from higher-scoring societies surface first, so well-run societies' issues get priority attention.</p>
         <div id="problems-list"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -77,32 +77,32 @@
     <!-- CHALLENGES -->
     <section id="tab-challenges" class="hidden">
       <div class="card" style="margin-bottom:16px;">
-        <h3>Create a community challenge</h3>
-        <p class="muted" style="margin-bottom:12px;">Every society competes on its own real, verified activity. The first society to reach the target completes it — all its residents get the bonus once.</p>
+        <h3 data-i18n="admin.createChallenge">Create a community challenge</h3>
+        <p class="muted" style="margin-bottom:12px;" data-i18n="admin.createChallengeDesc">Every society competes on its own real, verified activity. The first society to reach the target completes it — all its residents get the bonus once.</p>
         <div class="grid grid-2">
-          <div class="field"><label>Title</label><input id="ch-title" placeholder="e.g. 50 verified collections this week" /></div>
-          <div class="field"><label>Type</label>
+          <div class="field"><label data-i18n="admin.chTitle">Title</label><input id="ch-title" placeholder="e.g. 50 verified collections this week" /></div>
+          <div class="field"><label data-i18n="admin.chType">Type</label>
             <select id="ch-type">
-              <option value="collections">Verified collections</option>
-              <option value="reports">Verified dumping reports</option>
-              <option value="participation">Distinct residents participating</option>
-              <option value="score">Society score (0–100)</option>
+              <option value="collections" data-i18n="admin.chTypeCollections">Verified collections</option>
+              <option value="reports" data-i18n="admin.chTypeReports">Verified dumping reports</option>
+              <option value="participation" data-i18n="admin.chTypeParticipation">Distinct residents participating</option>
+              <option value="score" data-i18n="admin.chTypeScore">Society score (0–100)</option>
             </select>
           </div>
-          <div class="field"><label>Target</label><input id="ch-target" type="number" min="1" step="1" value="20" /></div>
-          <div class="field"><label>Bonus points per resident</label><input id="ch-reward" type="number" min="0" step="5" value="25" /></div>
-          <div class="field"><label>Starts (date)</label><input id="ch-start" type="date" /></div>
-          <div class="field"><label>Ends (date)</label><input id="ch-end" type="date" /></div>
+          <div class="field"><label data-i18n="admin.chTarget">Target</label><input id="ch-target" type="number" min="1" step="1" value="20" /></div>
+          <div class="field"><label data-i18n="admin.chReward">Bonus points per resident</label><input id="ch-reward" type="number" min="0" step="5" value="25" /></div>
+          <div class="field"><label data-i18n="admin.chStart">Starts (date)</label><input id="ch-start" type="date" /></div>
+          <div class="field"><label data-i18n="admin.chEnd">Ends (date)</label><input id="ch-end" type="date" /></div>
         </div>
-        <div class="field"><label>Description</label><textarea id="ch-desc" rows="2" placeholder="What is this challenge about?"></textarea></div>
-        <button onclick="createChallenge()">Launch challenge</button>
+        <div class="field"><label data-i18n="admin.chDesc">Description</label><textarea id="ch-desc" rows="2" placeholder="What is this challenge about?"></textarea></div>
+        <button onclick="createChallenge()" data-i18n="admin.chLaunchBtn">Launch challenge</button>
       </div>
       <div class="card">
-        <div class="section-title" style="margin-top:0;"><span>🏆 Active challenges — per-society progress</span><button class="secondary" onclick="loadChallenges()">↻ Refresh</button></div>
+        <div class="section-title" style="margin-top:0;"><span data-i18n="admin.activeChallenges">🏆 Active challenges — per-society progress</span><button class="secondary" onclick="loadChallenges()">↻ Refresh</button></div>
         <div id="challenges-active"><p class="muted">Loading…</p></div>
       </div>
       <div class="card" style="margin-top:16px;">
-        <h3>Challenge history</h3>
+        <h3 data-i18n="admin.challengeHistory">Challenge history</h3>
         <div id="challenges-history"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -111,15 +111,15 @@
     <section id="tab-leaderboard" class="hidden">
       <div class="grid grid-3">
         <div class="card">
-          <div class="section-title" style="margin-top:0;"><span>🏠 Residents</span><button class="secondary" onclick="loadLeaderboard()">↻</button></div>
+          <div class="section-title" style="margin-top:0;"><span data-i18n="admin.lbResidents">🏠 Residents</span><button class="secondary" onclick="loadLeaderboard()">↻</button></div>
           <div id="lb-residents"><p class="muted">Loading…</p></div>
         </div>
         <div class="card">
-          <div class="section-title" style="margin-top:0;"><span>🚛 Collectors</span></div>
+          <div class="section-title" style="margin-top:0;"><span data-i18n="admin.lbCollectors">🚛 Collectors</span></div>
           <div id="lb-collectors"><p class="muted">Loading…</p></div>
         </div>
         <div class="card">
-          <div class="section-title" style="margin-top:0;"><span>🏘️ Societies</span></div>
+          <div class="section-title" style="margin-top:0;"><span data-i18n="admin.lbSocieties">🏘️ Societies</span></div>
           <div id="lb-societies"><p class="muted">Loading…</p></div>
         </div>
       </div>
@@ -128,12 +128,12 @@
     <!-- USERS -->
     <section id="tab-users" class="hidden">
       <div class="card" style="margin-bottom:16px;">
-        <h3>Find a user (full trace)</h3>
+        <h3 data-i18n="admin.findUser">Find a user (full trace)</h3>
         <div style="display:flex; gap:10px; margin-top:10px;">
-          <input id="user-search" placeholder="Type a name or email…" onkeydown="if(event.key==='Enter')searchUser()" />
-          <button onclick="searchUser()">Search</button>
+          <input id="user-search" data-i18n-placeholder="admin.userSearchPlaceholder" placeholder="Type a name or email…" onkeydown="if(event.key==='Enter')searchUser()" />
+          <button onclick="searchUser()" data-i18n="admin.searchBtn">Search</button>
         </div>
-        <div id="user-results"><p class="muted">Every photo, point, request, report and score for a resident or collector appears here.</p></div>
+        <div id="user-results"><p class="muted" data-i18n="admin.userResultsDesc">Every photo, point, request, report and score for a resident or collector appears here.</p></div>
       </div>
     </section>
   </main>
@@ -141,6 +141,7 @@
   <footer class="site-footer" id="site-footer"></footer>
   <script src="/vendor/supabase.js"></script>
   <script src="/js/api.js"></script>
+  <script src="/js/i18n.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/site.js"></script>
   <script src="/js/realtime.js"></script>

@@ -14,28 +14,28 @@
     <div id="education-banner" class="card hidden" style="margin-bottom:16px; border-left:4px solid var(--amber-500);"></div>
 
     <div class="page-tabs">
-      <button data-tab="request" class="active" onclick="showTab('request')">📦 Request collection</button>
-      <button data-tab="society" onclick="showTab('society')">🌆 My society</button>
-      <button data-tab="history" onclick="showTab('history')">🕓 My history</button>
-      <button data-tab="report" onclick="showTab('report')">🚨 Report dumping</button>
-      <button data-tab="problems" onclick="showTab('problems')">🏘️ Society problems</button>
-      <button data-tab="challenges" onclick="showTab('challenges')">🏆 Challenges</button>
-      <button data-tab="points" onclick="showTab('points')">⭐ Points & leaderboard</button>
+      <button data-tab="request" class="active" onclick="showTab('request')" data-i18n="res.tabRequest">📦 Request collection</button>
+      <button data-tab="society" onclick="showTab('society')" data-i18n="res.tabSociety">🌆 My society</button>
+      <button data-tab="history" onclick="showTab('history')" data-i18n="res.tabHistory">🕓 My history</button>
+      <button data-tab="report" onclick="showTab('report')" data-i18n="res.tabReport">🚨 Report dumping</button>
+      <button data-tab="problems" onclick="showTab('problems')" data-i18n="res.tabProblems">🏘️ Society problems</button>
+      <button data-tab="challenges" onclick="showTab('challenges')" data-i18n="res.tabChallenges">🏆 Challenges</button>
+      <button data-tab="points" onclick="showTab('points')" data-i18n="res.tabPoints">⭐ Points & leaderboard</button>
     </div>
 
     <!-- SOCIETIES -->
     <section id="tab-society" class="hidden">
       <div class="card" style="margin-bottom: 16px;">
         <div class="section-title" style="margin-top:0;">
-          <span>🌆 My society &amp; nearby societies</span>
+          <span data-i18n="res.mySocietyTitle">🌆 My society &amp; nearby societies</span>
           <button class="secondary" onclick="loadSocieties()">↻ Refresh</button>
         </div>
-        <p class="hint" id="society-loc-status">Tracing your location to find societies in your city…</p>
+        <p class="hint" id="society-loc-status" data-i18n="res.societyLocStatus">Tracing your location to find societies in your city…</p>
         <div id="my-society"><p class="muted">Loading…</p></div>
       </div>
       <div class="card">
-        <div class="section-title" style="margin-top:0;"><span>Societies near you</span><span class="live-tag"><span class="live-dot"></span> Live</span></div>
-        <p class="muted" style="margin-bottom:12px;">Ranked by your traced location. Join any society to take part in its problems, challenges and score.</p>
+        <div class="section-title" style="margin-top:0;"><span data-i18n="res.societiesNearYou">Societies near you</span><span class="live-tag"><span class="live-dot"></span> Live</span></div>
+        <p class="muted" style="margin-bottom:12px;" data-i18n="res.societiesRanked">Ranked by your traced location. Join any society to take part in its problems, challenges and score.</p>
         <div id="societies-list"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -44,41 +44,41 @@
     <!-- REQUEST -->
     <section id="tab-request" class="grid grid-2">
       <div class="card">
-        <h3>Create a collection request</h3>
-        <p class="muted" style="margin-bottom: 14px;">Take a photo of your waste. Location + time are recorded automatically and verified when the collector picks it up.</p>
+        <h3 data-i18n="res.createRequest">Create a collection request</h3>
+        <p class="muted" style="margin-bottom: 14px;" data-i18n="res.createRequestDesc">Take a photo of your waste. Location + time are recorded automatically and verified when the collector picks it up.</p>
         <div class="field">
-          <label>Waste type</label>
+          <label data-i18n="res.wasteType">Waste type</label>
           <select id="req-type">
-            <option value="mixed">Mixed</option>
-            <option value="wet">Wet (kitchen/organic)</option>
-            <option value="dry">Dry (recyclable)</option>
-            <option value="hazardous">Hazardous</option>
+            <option value="mixed" data-i18n="res.wasteMixed">Mixed</option>
+            <option value="wet" data-i18n="res.wasteWet">Wet (kitchen/organic)</option>
+            <option value="dry" data-i18n="res.wasteDry">Dry (recyclable)</option>
+            <option value="hazardous" data-i18n="res.wasteHazardous">Hazardous</option>
           </select>
         </div>
         <div class="camera-box">
           <video id="req-video" autoplay playsinline muted></video>
           <img id="req-preview" class="hidden" alt="preview" />
           <div class="camera-overlay">
-            <button type="button" id="req-capture" class="secondary">📷 Capture</button>
-            <button type="button" id="req-retake" class="secondary hidden">↺ Retake</button>
-            <button type="button" id="req-submit" class="hidden">Submit request</button>
+            <button type="button" id="req-capture" class="secondary" data-i18n="res.capture">📷 Capture</button>
+            <button type="button" id="req-retake" class="secondary hidden" data-i18n="res.retake">↺ Retake</button>
+            <button type="button" id="req-submit" class="hidden" data-i18n="res.submitRequest">Submit request</button>
           </div>
         </div>
-        <p class="hint" id="req-status">Starting camera…</p>
+        <p class="hint" id="req-status" data-i18n="res.reqStatus">Starting camera…</p>
         <button type="button" id="req-save" class="hidden" style="margin-top: 12px; width: 100%;">✅ Save request (GPS will be attached)</button>
       </div>
       <div class="card">
-        <h3>How verification works</h3>
+        <h3 data-i18n="res.howVerification">How verification works</h3>
         <ol style="padding-left: 18px; color: var(--muted); font-size: 0.92rem;">
-          <li>You capture your waste with GPS + timestamp.</li>
-          <li>A collector in your area sees your request and location.</li>
-          <li>After collecting, the collector uploads an after-photo.</li>
-          <li>Computer vision + AI compare the two photos & locations.</li>
-          <li>Only on <b>verified</b> match you earn +20 points.</li>
+          <li data-i18n="res.howStep1">You capture your waste with GPS + timestamp.</li>
+          <li data-i18n="res.howStep2">A collector in your area sees your request and location.</li>
+          <li data-i18n="res.howStep3">After collecting, the collector uploads an after-photo.</li>
+          <li data-i18n="res.howStep4">Computer vision + AI compare the two photos & locations.</li>
+          <li data-i18n="res.howStep5">Only on <b>verified</b> match you earn +20 points.</li>
         </ol>
         <div class="kpi" style="margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px;">
           <div class="num" id="side-points">0</div>
-          <div class="lab">Your points</div>
+          <div class="lab" data-i18n="res.yourPoints">Your points</div>
         </div>
       </div>
     </section>
@@ -86,7 +86,7 @@
     <!-- HISTORY -->
     <section id="tab-history" class="hidden">
       <div class="card">
-        <h3>My collection requests</h3>
+        <h3 data-i18n="res.myCollectionRequests">My collection requests</h3>
         <div id="history-list"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -94,25 +94,25 @@
     <!-- REPORT -->
     <section id="tab-report" class="hidden grid grid-2">
       <div class="card">
-        <h3>Report irresponsible dumping</h3>
-        <p class="muted" style="margin-bottom: 14px;">Saw someone dumping waste on a street or empty plot? Photo + location help us verify it. Verified reports earn <b>+15 points</b>.</p>
+        <h3 data-i18n="res.reportDumping">Report irresponsible dumping</h3>
+        <p class="muted" style="margin-bottom: 14px;" data-i18n="res.reportDumpingDesc">Saw someone dumping waste on a street or empty plot? Photo + location help us verify it. Verified reports earn <b>+15 points</b>.</p>
         <div class="field">
-          <label>Describe what you saw</label>
+          <label data-i18n="res.describeWhat">Describe what you saw</label>
           <textarea id="rep-desc" rows="3" placeholder="e.g. waste dumped near the corner plot, mostly construction debris"></textarea>
         </div>
         <div class="camera-box">
           <video id="rep-video" autoplay playsinline muted></video>
           <img id="rep-preview" class="hidden" alt="preview" />
           <div class="camera-overlay">
-            <button type="button" id="rep-capture" class="secondary">📷 Capture</button>
-            <button type="button" id="rep-retake" class="secondary hidden">↺ Retake</button>
-            <button type="button" id="rep-submit" class="hidden">Submit report</button>
+            <button type="button" id="rep-capture" class="secondary" data-i18n="res.capture">📷 Capture</button>
+            <button type="button" id="rep-retake" class="secondary hidden" data-i18n="res.retake">↺ Retake</button>
+            <button type="button" id="rep-submit" class="hidden" data-i18n="res.submitReport">Submit report</button>
           </div>
         </div>
-        <p class="hint" id="rep-status">Starting camera…</p>
+        <p class="hint" id="rep-status" data-i18n="res.repStatus">Starting camera…</p>
       </div>
       <div class="card">
-        <h3>My reports</h3>
+        <h3 data-i18n="res.myReports">My reports</h3>
         <div id="my-reports"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -120,14 +120,14 @@
     <!-- PROBLEMS -->
     <section id="tab-problems" class="hidden">
       <div class="card" style="margin-bottom: 16px;">
-        <h3>Post a society problem</h3>
-        <div class="field"><label>Title</label><input id="pb-title" placeholder="e.g. broken streetlight near the gate" /></div>
-        <div class="field"><label>Description</label><textarea id="pb-desc" rows="2"></textarea></div>
-        <div class="field"><label>Photo (optional)</label><input type="file" id="pb-photo" accept="image/*" /></div>
-        <button onclick="postProblem()">Post problem</button>
+        <h3 data-i18n="res.postProblem">Post a society problem</h3>
+        <div class="field"><label data-i18n="res.problemTitle">Title</label><input id="pb-title" placeholder="e.g. broken streetlight near the gate" /></div>
+        <div class="field"><label data-i18n="res.problemDesc">Description</label><textarea id="pb-desc" rows="2"></textarea></div>
+        <div class="field"><label data-i18n="res.problemPhoto">Photo (optional)</label><input type="file" id="pb-photo" accept="image/*" /></div>
+        <button onclick="postProblem()" data-i18n="res.postProblemBtn">Post problem</button>
       </div>
       <div class="card">
-        <h3>Society problem board</h3>
+        <h3 data-i18n="res.societyProblemBoard">Society problem board</h3>
         <div id="problems-list"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -135,12 +135,12 @@
     <!-- CHALLENGES -->
     <section id="tab-challenges" class="hidden">
       <div class="card" style="margin-bottom:16px;">
-        <div class="section-title" style="margin-top:0;"><span>🏆 Active community challenges</span><button class="secondary" onclick="loadChallenges()">↻ Refresh</button></div>
-        <p class="muted" style="margin-bottom:14px;">Challenges run for the whole society. When your society hits the target, every resident of your society gets a bonus. Verified collections and verified dumping reports both count.</p>
+        <div class="section-title" style="margin-top:0;"><span data-i18n="res.activeChallenges">🏆 Active community challenges</span><button class="secondary" onclick="loadChallenges()">↻ Refresh</button></div>
+        <p class="muted" style="margin-bottom:14px;" data-i18n="res.activeChallengesDesc">Challenges run for the whole society. When your society hits the target, every resident of your society gets a bonus. Verified collections and verified dumping reports both count.</p>
         <div id="challenges-active"><p class="muted">Loading…</p></div>
       </div>
       <div class="card">
-        <h3>Completed challenges</h3>
+        <h3 data-i18n="res.completedChallenges">Completed challenges</h3>
         <div id="challenges-history"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -148,11 +148,11 @@
     <!-- POINTS -->
     <section id="tab-points" class="hidden grid grid-2">
       <div class="card">
-        <h3>Points history</h3>
+        <h3 data-i18n="res.pointsHistory">Points history</h3>
         <div id="points-list"><p class="muted">Loading…</p></div>
       </div>
       <div class="card">
-        <h3>Resident leaderboard <button class="secondary" style="float:right; font-size:0.8rem; padding:6px 10px;" onclick="loadLeaderboard()">↻ Refresh</button></h3>
+        <h3 data-i18n="res.residentLeaderboard">Resident leaderboard <button class="secondary" style="float:right; font-size:0.8rem; padding:6px 10px;" onclick="loadLeaderboard()">↻ Refresh</button></h3>
         <div id="leaderboard"><p class="muted">Loading…</p></div>
       </div>
     </section>
@@ -161,6 +161,7 @@
   <footer class="site-footer" id="site-footer"></footer>
   <script src="/vendor/supabase.js"></script>
   <script src="/js/api.js"></script>
+  <script src="/js/i18n.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/site.js"></script>
   <script src="/js/camera.js"></script>

@@ -1,6 +1,8 @@
 // Shared auth logic for the three role auth pages.
 const ROLE = document.body.dataset.role;
 
+function _t(key) { return window.t ? window.t(key) : key; }
+
 const tabLogin = document.getElementById('tab-login');
 const tabSignup = document.getElementById('tab-signup');
 const loginForm = document.getElementById('login-form');
@@ -36,7 +38,7 @@ async function doLogin(e) {
   try {
     const data = await WW.api('/api/auth/login', { method: 'POST', body: { email, password } });
     if (data.profile.role !== ROLE) {
-      showError(`This account is a ${data.profile.role}. Please use the correct login.`);
+      showError(_t('auth.roleMismatch') + ' ' + data.profile.role);
       return;
     }
     WW.setSession(data.session.access_token, data.profile);
@@ -63,17 +65,15 @@ function renderSocietyOptions(lat, lng, list, region) {
     hint.disabled = true;
     hint.selected = true;
     if (lat != null && lng != null && region) {
-      // No society registered near the traced location — let the resident sign
-      // up under the region/area name instead.
       hint.disabled = false;
       hint.value = 'area:' + region.area_id;
-      hint.textContent = `📍 ${region.name} — no society registered, join area`;
+      hint.textContent = `📍 ${region.name} — ${_t('auth.noSocietyJoinArea')}`;
     } else if (lat != null && lng != null) {
       hint.value = '';
-      hint.textContent = 'No societies registered in your city yet';
+      hint.textContent = _t('auth.noSocietiesInCity');
     } else {
       hint.value = '';
-      hint.textContent = 'Allow location to see societies in your city';
+      hint.textContent = _t('auth.allowLocationToSeeSocieties');
     }
     sel.appendChild(hint);
     _societyHint(lat, lng, list, region);
@@ -82,13 +82,13 @@ function renderSocietyOptions(lat, lng, list, region) {
 
   const hint = document.createElement('option');
   hint.value = '';
-  hint.textContent = 'Select your society… (nearest first)';
+  hint.textContent = _t('auth.selectSociety');
   hint.disabled = true;
   hint.selected = true;
   sel.appendChild(hint);
 
   const near = document.createElement('optgroup');
-  near.label = '📍 Societies in your city';
+  near.label = '📍 ' + _t('auth.societiesInCity');
   for (const s of list) {
     const o = document.createElement('option');
     o.value = s.id;
@@ -103,16 +103,16 @@ function _societyHint(lat, lng, list, region) {
   const hint = document.getElementById('su-society-hint');
   if (!hint) return;
   if (lat == null || lng == null) {
-    hint.textContent = 'Allow location to see the societies in your city, or tap “📡 Use my location”.';
+    hint.textContent = _t('auth.allowLocationOrTapGps');
     return;
   }
   if (list && list.length) {
-    hint.textContent = `📍 Location traced — ${list.length} societies within ${_societies.radius ?? 'your'} city, nearest first.`;
+    hint.textContent = `📍 ${_t('auth.locationTraced')} ${list.length} ${_t('auth.societiesWithin')} ${_societies.radius ?? _t('auth.your')} ${_t('auth.city')}, ${_t('auth.nearestFirst')}`;
     return;
   }
   hint.textContent = region
-    ? `No society is registered in ${region.name} yet — you can join under this area and pick a society later.`
-    : 'No societies are registered near this location yet.';
+    ? `${_t('auth.noSocietyRegisteredIn')} ${region.name} ${_t('auth.joinAreaPickLater')}`
+    : _t('auth.noSocietiesNearLocation');
 }
 
 async function fetchOptions(lat, lng) {
@@ -142,7 +142,7 @@ async function loadSocieties() {
     const data = await fetchOptions(pos.lat, pos.lng);
     renderSocietyOptions(pos.lat, pos.lng, data.societies, data.region);
   } catch (err) {
-    showError('Could not load societies: ' + err.message);
+    showError(_t('auth.couldNotLoadSocieties') + ' ' + err.message);
   }
 }
 
@@ -156,7 +156,7 @@ async function captureGps() {
     renderSocietyOptions(pos.lat, pos.lng, data.societies, data.region);
     showError('');
   } catch (err) {
-    showError(err.message + ' — you can continue without a pin, or enter coordinates.');
+    showError(err.message + ' — ' + _t('auth.continueWithoutPin'));
   }
 }
 
@@ -187,7 +187,7 @@ async function doSignup(e) {
   };
   try {
     const data = await WW.api('/api/auth/register', { method: 'POST', body });
-    WW.toast('Account created! Please log in.');
+    WW.toast(_t('auth.accountCreated'));
     showTab('login');
     document.getElementById('login-email').value = body.email;
     document.getElementById('login-password').value = '';

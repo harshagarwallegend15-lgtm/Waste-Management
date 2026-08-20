@@ -149,6 +149,14 @@
   var brand = '<a class="brand" href="/" aria-label="WasteWise home">' + mark('wwg') +
     '<span class="brand-text">Waste<span>Wise</span></span></a>';
 
+  var langSelect = '<select class="lang-select" aria-label="Language selector" onchange="WWI18n.setLang(this.value)" style="font-size:12px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 4px;cursor:pointer;">' +
+    '<option value="en"' + (window.WWI18n && window.WWI18n.getLang() === 'en' ? ' selected' : '') + '>&#x1F1EC;&#x1F1E7; English</option>' +
+    '<option value="hi"' + (window.WWI18n && window.WWI18n.getLang() === 'hi' ? ' selected' : '') + '>&#x1F1EE;&#x1F1F3; Hindi</option>' +
+    '<option value="kn"' + (window.WWI18n && window.WWI18n.getLang() === 'kn' ? ' selected' : '') + '>&#x1F1EE;&#x1F1F3; Kannada</option>' +
+    '<option value="ta"' + (window.WWI18n && window.WWI18n.getLang() === 'ta' ? ' selected' : '') + '>&#x1F1F9;&#x1F1ED; Tamil</option>' +
+    '<option value="bn"' + (window.WWI18n && window.WWI18n.getLang() === 'bn' ? ' selected' : '') + '>&#x1F1E7;&#x1F1E9; Bengali</option>' +
+    '</select>';
+
   var socials = function () {
     var icons = [
       { label: 'X', d: 'M18.9 2H22l-7.03 8.03L23.36 22h-6.48l-5.08-6.64L6.02 22H2.9l7.52-8.6L1.64 2h6.64l4.59 6.07L18.9 2zm-1.13 18h1.79L7.36 3.9H5.44L17.77 20z' },
@@ -171,7 +179,7 @@
     if (page === 'dash') {
       var role = header.dataset.role || '';
       var roleIcon = role === 'admin' ? '🏛️' : role === 'collector' ? '🚛' : '🏠';
-      var roleLabel = role === 'admin' ? 'Municipality' : role === 'collector' ? 'Collector' : 'Resident';
+      var roleLabel = role === 'admin' ? t('nav.roleAdmin') : role === 'collector' ? t('nav.roleCollector') : t('nav.roleResident');
       var chip = '<div class="user-chip">' +
         '<span class="avatar">' + roleIcon + '</span>' +
         '<span class="chip-info">' +
@@ -179,24 +187,25 @@
         '<span class="chip-meta"><span class="chip-role">' + roleLabel + '</span>';
       if (role === 'collector') chip += '<span class="chip-area">📍 <span id="nav-area">—</span></span>';
       chip += '<span class="chip-pts">⭐ <span id="nav-points">0</span></span></span></span></div>';
-      links = '<a class="nav-link" href="/">' + ico('home') + '<span>Home</span></a>';
-      right = chip + '<button class="secondary nav-logout" onclick="WW.logout()">' + ico('logout') + '<span>Logout</span></button>';
+      links = '<a class="nav-link" href="/">' + ico('home') + '<span>' + t('nav.home') + '</span></a>';
+      right = chip + '<button class="secondary nav-logout" onclick="WW.logout()">' + ico('logout') + '<span>' + t('nav.logout') + '</span></button>';
     } else if (page === 'auth') {
       links =
-        '<a class="nav-link" href="/">' + ico('home') + '<span>Home</span></a>' +
-        '<a class="nav-link" href="/#how">' + ico('how') + '<span>How it works</span></a>' +
-        '<a class="nav-link" href="/#features">' + ico('features') + '<span>Features</span></a>';
-      right = '<a class="btn-ghost" href="/#roles">' + ico('back') + '<span>Back to roles</span></a>';
+        '<a class="nav-link" href="/">' + ico('home') + '<span>' + t('nav.home') + '</span></a>' +
+        '<a class="nav-link" href="/#how">' + ico('how') + '<span>' + t('nav.howItWorks') + '</span></a>' +
+        '<a class="nav-link" href="/#features">' + ico('features') + '<span>' + t('nav.features') + '</span></a>';
+      right = '<a class="btn-ghost" href="/#roles">' + ico('back') + '<span>' + t('nav.backToRoles') + '</span></a>';
     } else {
       links =
-        '<a class="nav-link" href="#how">' + ico('how') + '<span>How it works</span></a>' +
-        '<a class="nav-link" href="#features">' + ico('features') + '<span>Features</span></a>' +
-        '<a class="nav-link" href="#stats">' + ico('rewards') + '<span>Rewards</span></a>';
-      right = '<a class="btn-cta" href="/auth/resident.html">Sign in</a>';
+        '<a class="nav-link" href="#how">' + ico('how') + '<span>' + t('nav.howItWorks') + '</span></a>' +
+        '<a class="nav-link" href="#features">' + ico('features') + '<span>' + t('nav.features') + '</span></a>' +
+        '<a class="nav-link" href="#stats">' + ico('rewards') + '<span>' + t('nav.rewards') + '</span></a>';
+      right = '<a class="btn-cta" href="/auth/resident.html">' + t('nav.signIn') + '</a>';
     }
 
     header.innerHTML =
       '<div class="nav-inner">' + brand +
+      langSelect +
       '<nav class="site-nav" id="site-nav">' + links + '</nav>' +
       '<div class="nav-right">' + right + burger + '</div>' +
       '</div>';
@@ -208,23 +217,23 @@
       '<div class="footer-glow"></div>' +
       '<div class="footer-grid">' +
         '<div class="footer-brand">' + brand.replace('wwg', 'wwf') +
-          '<p>Community waste-management accountability and incentives. Verified work, real rewards, cleaner streets.</p>' +
-          '<a class="btn-cta footer-cta" href="/auth/resident.html">Get started →</a>' +
+          '<p>' + t('footer.tagline') + '</p>' +
+          '<a class="btn-cta footer-cta" href="/auth/resident.html">' + t('footer.getStarted') + ' →</a>' +
           '<div class="socials">' + socials() + '</div>' +
         '</div>' +
-        '<div class="footer-col"><h4>Explore</h4>' +
-          '<a href="/">' + ico('home') + '<span>Home</span></a>' +
-          '<a href="/auth/resident.html">🏠 <span>Resident portal</span></a>' +
-          '<a href="/auth/collector.html">🚛 <span>Collector portal</span></a>' +
-          '<a href="/auth/admin.html">🏛️ <span>Municipality</span></a>' +
+        '<div class="footer-col"><h4>' + t('footer.explore') + '</h4>' +
+          '<a href="/">' + ico('home') + '<span>' + t('footer.home') + '</span></a>' +
+          '<a href="/auth/resident.html">🏠 <span>' + t('footer.residentPortal') + '</span></a>' +
+          '<a href="/auth/collector.html">🚛 <span>' + t('footer.collectorPortal') + '</span></a>' +
+          '<a href="/auth/admin.html">🏛️ <span>' + t('footer.municipality') + '</span></a>' +
         '</div>' +
-        '<div class="footer-col"><h4>Platform</h4>' +
-          '<a href="/#how">' + ico('how') + '<span>How it works</span></a>' +
-          '<a href="/#features">' + ico('features') + '<span>Features</span></a>' +
-          '<a href="/#stats">' + ico('rewards') + '<span>Rewards &amp; points</span></a>' +
-          '<a href="/#roles">⭐ <span>Roles</span></a>' +
+        '<div class="footer-col"><h4>' + t('footer.platform') + '</h4>' +
+          '<a href="/#how">' + ico('how') + '<span>' + t('footer.howItWorks') + '</span></a>' +
+          '<a href="/#features">' + ico('features') + '<span>' + t('footer.features') + '</span></a>' +
+          '<a href="/#stats">' + ico('rewards') + '<span>' + t('footer.rewardsAndPoints') + '</span></a>' +
+          '<a href="/#roles">⭐ <span>' + t('footer.roles') + '</span></a>' +
         '</div>' +
-        '<div class="footer-col footer-contact"><h4>Contact</h4>' +
+        '<div class="footer-col footer-contact"><h4>' + t('footer.contact') + '</h4>' +
           '<a class="contact-item" href="mailto:hello@wastewise.app">' + ico('mail') + '<span>hello@wastewise.app</span></a>' +
           '<span class="contact-item">' + ico('phone') + '<span>+91 98765 43210</span></span>' +
           '<span class="contact-item">' + ico('pin') + '<span>Ward 12, Green City</span></span>' +
@@ -232,9 +241,9 @@
         '</div>' +
       '</div>' +
       '<div class="footer-bottom">' +
-        '<span>© ' + year + ' WasteWise · Built for cleaner communities.</span>' +
-        '<span class="footer-status"><span class="status-dot"></span> All systems operational</span>' +
-        '<span class="footer-legal"><a href="/#roles">Demo access</a><a href="mailto:hello@wastewise.app">Support</a></span>' +
+        '<span>© ' + year + ' WasteWise · ' + t('footer.builtFor') + '</span>' +
+        '<span class="footer-status"><span class="status-dot"></span> ' + t('footer.allSystemsOperational') + '</span>' +
+        '<span class="footer-legal"><a href="/#roles">' + t('footer.demoAccess') + '</a><a href="mailto:hello@wastewise.app">' + t('footer.support') + '</a></span>' +
       '</div>';
   }
 

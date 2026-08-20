@@ -30,7 +30,7 @@ window.WW = (() => {
     const res = await fetch(path, { method, headers, body: payload });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const err = new Error(data.error || 'Request failed');
+      const err = new Error(data.error || t('common.requestFailed'));
       err.status = res.status;
       if (res.status === 401) {
         clearSession();
@@ -78,17 +78,17 @@ window.WW = (() => {
   }
 
   const STATUS_BADGE = {
-    pending: '<span class="badge amber">Pending</span>',
-    collected: '<span class="badge blue">Collected</span>',
-    verified: '<span class="badge green">Verified</span>',
-    flagged: '<span class="badge red">Flagged</span>',
-    rejected: '<span class="badge gray">Rejected</span>',
-    open: '<span class="badge amber">Open</span>',
-    in_progress: '<span class="badge blue">In progress</span>',
-    resolved: '<span class="badge green">Resolved</span>',
-    duplicate: '<span class="badge gray">Duplicate</span>',
+    pending: () => '<span class="badge amber">' + t('common.pending') + '</span>',
+    collected: () => '<span class="badge blue">' + t('common.collected') + '</span>',
+    verified: () => '<span class="badge green">' + t('common.verified') + '</span>',
+    flagged: () => '<span class="badge red">' + t('common.flagged') + '</span>',
+    rejected: () => '<span class="badge gray">' + t('common.rejected') + '</span>',
+    open: () => '<span class="badge amber">' + t('common.open') + '</span>',
+    in_progress: () => '<span class="badge blue">' + t('common.inProgress') + '</span>',
+    resolved: () => '<span class="badge green">' + t('common.resolved') + '</span>',
+    duplicate: () => '<span class="badge gray">' + t('common.duplicate') + '</span>',
   };
-  function badge(status) { return STATUS_BADGE[status] || `<span class="badge gray">${escapeHtml(status)}</span>`; }
+  function badge(status) { const fn = STATUS_BADGE[status]; return fn ? fn() : `<span class="badge gray">${escapeHtml(status)}</span>`; }
 
   return { getToken, getProfile, setSession, clearSession, api, requireRole, logout, escapeHtml, toast, fmtDate, badge };
 })();
@@ -107,7 +107,7 @@ window.WWGarbage = (() => {
     const res = await fetch('/api/garbage/check', { method: 'POST', body: fd });
     const data = await res.json().catch(() => ({}));
     if (!data.ok) {
-      const err = new Error(data.error || 'Photo does not look like garbage');
+      const err = new Error(data.error || t('common.photoNotGarbage'));
       err.status = res.status;
       throw err;
     }
