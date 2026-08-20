@@ -236,6 +236,7 @@
         '<a class="nav-link" href="#features">' + ico('features') + '<span>' + t('nav.features') + '</span></a>' +
         '<a class="nav-link" href="#stats">' + ico('rewards') + '<span>' + t('nav.rewards') + '</span></a>';
       right = langDropdown +
+        '<div class="nav-sep" aria-hidden="true"></div>' +
         '<a class="btn-cta btn-nav" href="/auth/resident.html">' + t('nav.signIn') + '</a>';
     }
 
