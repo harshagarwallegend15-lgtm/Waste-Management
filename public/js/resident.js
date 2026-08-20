@@ -55,8 +55,9 @@ function startSocietyPoll() {
 
 function showTab(name) {
   document.querySelectorAll('.page-tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  ['request', 'society', 'history', 'report', 'problems', 'challenges', 'points'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
+  ['request', 'society', 'history', 'report', 'problems', 'challenges', 'learn', 'points'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
   if (name === 'society') loadSocieties();
+  if (name === 'learn') initQuiz();
 }
 
 // ---------- Request collection ----------
@@ -498,6 +499,140 @@ async function switchSociety(societyId) {
   } catch (err) {
     WW.toast(err.message, true);
   }
+}
+
+// ---------- Learn & Earn Quiz ----------
+
+let quizQuestions = [];
+let quizAnswers = [];
+let quizCurrent = 0;
+let quizStarted = false;
+
+async function initQuiz() {
+  if (quizStarted) return;
+  try {
+    const data = await WW.api('/api/learn-earn/quiz');
+    if (!data.canPlay) {
+      $('quiz-area').innerHTML = '<div style="text-align:center;padding:30px 0;"><p style="font-size:1.2rem;">🕐</p><p style="font-weight:700;margin:10px 0;">' + data.message + '</p><p class="hint">Complete quizzes daily to earn up to 50 points per day.</p></div>';
+      loadQuizHistory();
+      return;
+    }
+    quizQuestions = data.questions;
+    quizAnswers = new Array(quizQuestions.length).fill(-1);
+    quizCurrent = 0;
+    quizStarted = true;
+    renderQuizQuestion();
+  } catch (err) {
+    $('quiz-area').innerHTML = '<p class="muted">' + WW.escapeHtml(err.message) + '</p>';
+  }
+  loadQuizHistory();
+}
+
+function renderQuizQuestion() {
+  const q = quizQuestions[quizCurrent];
+  const total = quizQuestions.length;
+  const answered = quizAnswers[quizCurrent] >= 0;
+  const progress = Math.round(((quizCurrent + 1) / total) * 100);
+
+  $('quiz-area').innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+        <span>Question ${quizCurrent + 1} of ${total}</span>
+        <span>${progress}%</span>
+      </div>
+      <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
+    </div>
+    <h4 style="margin-bottom:14px;">${WW.escapeHtml(q.question)}</h4>
+    ${q.options.map((opt, i) => `
+      <label class="quiz-option" style="display:block; padding:12px 14px; margin-bottom:8px; border:2px solid var(--border); border-radius:10px; cursor:pointer; transition:all 0.2s; ${quizAnswers[quizCurrent] === i ? 'border-color:var(--c-accent); background:var(--accent-light);' : ''}" onclick="selectQuizOption(${i})">
+        <input type="radio" name="q${quizCurrent}" value="${i}" ${quizAnswers[quizCurrent] === i ? 'checked' : ''} style="margin-right:10px;" />
+        ${WW.escapeHtml(opt)}
+      </label>
+    `).join('')}
+    <div style="display:flex; gap:10px; margin-top:16px;">
+      ${quizCurrent > 0 ? '<button class="secondary" onclick="prevQuestion()">← Back</button>' : ''}
+      <div style="flex:1;"></div>
+      ${quizCurrent < total - 1
+        ? '<button onclick="nextQuestion()">Next →</button>'
+        : '<button onclick="submitQuiz()" style="background:var(--green-600); color:#fff;">Submit Quiz ✓</button>'
+      }
+    </div>`;
+}
+
+function selectQuizOption(idx) {
+  quizAnswers[quizCurrent] = idx;
+  renderQuizQuestion();
+}
+
+function nextQuestion() {
+  if (quizCurrent < quizQuestions.length - 1) { quizCurrent++; renderQuizQuestion(); }
+}
+
+function prevQuestion() {
+  if (quizCurrent > 0) { quizCurrent--; renderQuizQuestion(); }
+}
+
+async function submitQuiz() {
+  const unanswered = quizAnswers.filter((a) => a < 0).length;
+  if (unanswered > 0) {
+    if (!confirm(`You have ${unanswered} unanswered question(s). Submit anyway?`)) return;
+  }
+
+  const answers = quizAnswers.map((selected, id) => ({ id, selected: selected >= 0 ? selected : -1 }));
+  try {
+    const data = await WW.api('/api/learn-earn/submit', { method: 'POST', body: { answers } });
+    showQuizResults(data);
+  } catch (err) {
+    WW.toast(err.message, true);
+  }
+}
+
+function showQuizResults(data) {
+  const pct = Math.round((data.score / data.total) * 100);
+  const emoji = pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '💪';
+  const msg = pct >= 80 ? 'Excellent!' : pct >= 50 ? 'Good job!' : 'Keep learning!';
+
+  $('quiz-area').innerHTML = `
+    <div style="text-align:center; padding:20px 0;">
+      <div style="font-size:3rem;">${emoji}</div>
+      <h2 style="margin:10px 0 4px;">${msg}</h2>
+      <p style="font-size:1.1rem; font-weight:700;">${data.score} / ${data.total} correct</p>
+      <p style="font-size:1.5rem; font-weight:800; color:var(--green-600); margin:10px 0;">+${data.pointsEarned} points</p>
+      <p class="hint" style="margin-top:4px;">Max possible: ${data.total * 5} points (${data.total} questions × 5 pts)</p>
+      <button style="margin-top:16px;" onclick="quizStarted=false;initQuiz();">Play Again Tomorrow</button>
+    </div>
+    <div style="margin-top:16px;">
+      <h4>Review your answers</h4>
+      ${data.results.map((r, i) => {
+        const q = quizQuestions[r.id];
+        if (!q) return '';
+        return `<div style="padding:10px; margin-bottom:8px; border-left:4px solid ${r.correct ? 'var(--green-500)' : 'var(--red-500)'}; background:var(--bg); border-radius:0 8px 8px 0;">
+          <p style="font-weight:700; margin:0 0 4px;">Q${i + 1}: ${WW.escapeHtml(q.question)}</p>
+          <p style="margin:0; font-size:0.9rem; color:${r.correct ? 'var(--green-600)' : 'var(--red-500)'};">
+            ${r.correct ? '✓ Correct!' : '✗ Wrong — Answer: ' + WW.escapeHtml(q.options[r.correctAnswer])}
+          </p>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  loadQuizHistory();
+  loadPoints();
+}
+
+async function loadQuizHistory() {
+  try {
+    const { sessions } = await WW.api('/api/learn-earn/history');
+    $('quiz-history').innerHTML = sessions.length
+      ? `<table><thead><tr><th>Date</th><th>Score</th><th>Points</th></tr></thead><tbody>
+          ${sessions.map((s) => `
+            <tr>
+              <td>${WW.fmtDate(s.created_at)}</td>
+              <td>${s.score}/${s.total}</td>
+              <td style="font-weight:700; color:var(--green-600);">+${s.points_earned}</td>
+            </tr>`).join('')}
+        </tbody></table>`
+      : '<p class="muted">No quizzes taken yet. Start your first quiz!</p>';
+  } catch (err) { WW.toast(err.message, true); }
 }
 
 init();

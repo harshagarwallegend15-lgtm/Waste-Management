@@ -25,11 +25,12 @@ async function init() {
 
 function showTab(name) {
   document.querySelectorAll('.page-tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  ['overview', 'verifications', 'reports', 'problems', 'challenges', 'leaderboard', 'users'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
+  ['overview', 'verifications', 'reports', 'problems', 'challenges', 'leaderboard', 'quizzes', 'users'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
   if (name === 'verifications') loadCollections();
   if (name === 'reports') loadReports();
   if (name === 'problems') loadProblems();
   if (name === 'challenges') loadChallenges();
+  if (name === 'quizzes') loadQuizResults();
 }
 
 // ---------- Overview ----------
@@ -337,6 +338,33 @@ function ledger(p, txns) {
       <td style="text-align:right; font-weight:700; color:${t.delta >= 0 ? 'var(--green-600)' : 'var(--red-500)'};">${t.delta >= 0 ? '+' : ''}${t.delta}</td>
       <td class="muted">${t.source_type} #${t.source_id?.slice(0, 8) || ''}</td></tr>`).join('')}
   </tbody></table>`;
+}
+
+// ---------- Quiz results ----------
+
+async function loadQuizResults() {
+  try {
+    const [sessionsData, statsData] = await Promise.all([
+      WW.api('/api/learn-earn/all'),
+      WW.api('/api/learn-earn/stats'),
+    ]);
+
+    $('kpi-quiz-sessions').textContent = statsData.totalSessions;
+    $('kpi-quiz-avg').textContent = statsData.avgScore + '/10';
+    $('kpi-quiz-points').textContent = statsData.totalPointsAwarded;
+
+    $('quiz-results-list').innerHTML = sessionsData.sessions.length
+      ? `<table><thead><tr><th>Date</th><th>Resident</th><th>Score</th><th>Points</th></tr></thead><tbody>
+          ${sessionsData.sessions.map((s) => `
+            <tr>
+              <td>${WW.fmtDate(s.created_at)}</td>
+              <td>${WW.escapeHtml(s.profiles?.name || '—')}</td>
+              <td>${s.score}/${s.total}</td>
+              <td style="font-weight:700; color:var(--green-600);">+${s.points_earned}</td>
+            </tr>`).join('')}
+        </tbody></table>`
+      : '<p class="muted">No quizzes taken yet.</p>';
+  } catch (err) { WW.toast(err.message, true); }
 }
 
 init();

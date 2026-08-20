@@ -20,6 +20,7 @@
       <button data-tab="report" onclick="showTab('report')" data-i18n="res.tabReport">🚨 Report dumping</button>
       <button data-tab="problems" onclick="showTab('problems')" data-i18n="res.tabProblems">🏘️ Society problems</button>
       <button data-tab="challenges" onclick="showTab('challenges')" data-i18n="res.tabChallenges">🏆 Challenges</button>
+      <button data-tab="learn" onclick="showTab('learn')" data-i18n="res.tabLearn">📚 Learn & Earn</button>
       <button data-tab="points" onclick="showTab('points')" data-i18n="res.tabPoints">⭐ Points & leaderboard</button>
     </div>
 
@@ -142,6 +143,19 @@
       <div class="card">
         <h3 data-i18n="res.completedChallenges">Completed challenges</h3>
         <div id="challenges-history"><p class="muted">Loading…</p></div>
+      </div>
+    </section>
+
+    <!-- LEARN & EARN -->
+    <section id="tab-learn" class="hidden grid grid-2">
+      <div class="card">
+        <h3>📚 Learn & Earn Quiz</h3>
+        <p class="muted" style="margin-bottom:14px;">Test your knowledge about waste management and earn points! 10 questions, <b>5 points</b> per correct answer. <b>1 quiz per day</b> — max 50 points daily.</p>
+        <div id="quiz-area"></div>
+      </div>
+      <div class="card">
+        <h3>📊 My Quiz History</h3>
+        <div id="quiz-history"><p class="muted">Loading…</p></div>
       </div>
     </section>
 

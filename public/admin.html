@@ -18,6 +18,7 @@
       <button data-tab="problems" onclick="showTab('problems')" data-i18n="admin.tabProblems">🏘️ Problems</button>
       <button data-tab="challenges" onclick="showTab('challenges')" data-i18n="admin.tabChallenges">🏆 Challenges</button>
       <button data-tab="leaderboard" onclick="showTab('leaderboard')" data-i18n="admin.tabLeaderboard">📈 Leaderboards</button>
+      <button data-tab="quizzes" onclick="showTab('quizzes')" data-i18n="admin.tabQuizzes">📚 Quiz results</button>
       <button data-tab="users" onclick="showTab('users')" data-i18n="admin.tabUsers">👥 Users & trace</button>
     </div>
 
@@ -122,6 +123,19 @@
           <div class="section-title" style="margin-top:0;"><span data-i18n="admin.lbSocieties">🏘️ Societies</span></div>
           <div id="lb-societies"><p class="muted">Loading…</p></div>
         </div>
+      </div>
+    </section>
+
+    <!-- QUIZ RESULTS -->
+    <section id="tab-quizzes" class="hidden">
+      <div class="grid grid-3" style="margin-bottom:16px;">
+        <div class="card kpi"><div class="num" id="kpi-quiz-sessions">—</div><div class="lab">Total quizzes taken</div></div>
+        <div class="card kpi"><div class="num" id="kpi-quiz-avg">—</div><div class="lab">Avg score</div></div>
+        <div class="card kpi"><div class="num" id="kpi-quiz-points">—</div><div class="lab">Points awarded via quiz</div></div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-top:0;"><span>📚 Recent quiz sessions</span><button class="secondary" onclick="loadQuizResults()">↻ Refresh</button></div>
+        <div id="quiz-results-list"><p class="muted">Loading…</p></div>
       </div>
     </section>
 
