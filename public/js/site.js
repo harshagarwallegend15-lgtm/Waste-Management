@@ -129,10 +129,12 @@
     mail: 'M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm16 2-8 6L4 6',
     phone: 'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.9.6 2.8.7a2 2 0 0 1 1.7 2z',
     pin: 'M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11zm0-8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-    clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-16v6l4 2'
+    clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-16v6l4 2',
+    globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-2a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-11h2m-4 0h6m-8 3h8m-9 3h6'
   };
-  var ico = function (name) {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + (ICONS[name] || '') + '"/></svg>';
+  var ico = function (name, cls) {
+    var c = cls ? ' class="' + cls + '"' : '';
+    return '<svg' + c + ' viewBox="0 0 24 24" aria-hidden="true"><path d="' + (ICONS[name] || '') + '"/></svg>';
   };
 
   var mark = function (gid) {
@@ -149,13 +151,37 @@
   var brand = '<a class="brand" href="/" aria-label="WasteWise home">' + mark('wwg') +
     '<span class="brand-text">Waste<span>Wise</span></span></a>';
 
-  var langSelect = '<select class="lang-select" aria-label="Language selector" onchange="WWI18n.setLang(this.value)" style="font-size:12px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:2px 4px;cursor:pointer;">' +
-    '<option value="en"' + (window.WWI18n && window.WWI18n.getLang() === 'en' ? ' selected' : '') + '>&#x1F1EC;&#x1F1E7; English</option>' +
-    '<option value="hi"' + (window.WWI18n && window.WWI18n.getLang() === 'hi' ? ' selected' : '') + '>&#x1F1EE;&#x1F1F3; Hindi</option>' +
-    '<option value="kn"' + (window.WWI18n && window.WWI18n.getLang() === 'kn' ? ' selected' : '') + '>&#x1F1EE;&#x1F1F3; Kannada</option>' +
-    '<option value="ta"' + (window.WWI18n && window.WWI18n.getLang() === 'ta' ? ' selected' : '') + '>&#x1F1F9;&#x1F1ED; Tamil</option>' +
-    '<option value="bn"' + (window.WWI18n && window.WWI18n.getLang() === 'bn' ? ' selected' : '') + '>&#x1F1E7;&#x1F1E9; Bengali</option>' +
-    '</select>';
+  // Language dropdown (custom, not raw <select>)
+  var curLang = (window.WWI18n && window.WWI18n.getLang()) || 'en';
+  var langs = [
+    { code: 'en', flag: '\uD83C\uDDEC\uD83C\uDDE7', name: 'EN' },
+    { code: 'hi', flag: '\uD83C\uDDEE\uD83C\uDDF3', name: '\u0939\u093F' },
+    { code: 'kn', flag: '\uD83C\uDDEE\uD83C\uDDF3', name: '\u0C95\u0CA8\u0CCD' },
+    { code: 'ta', flag: '\uD83C\uDDEE\uD83C\uDDF3', name: '\u0BA4\u0BAE\u0BBF' },
+    { code: 'bn', flag: '\uD83C\uDDEE\uD83C\uDDE7', name: '\u09AC\u09BE\u0982' }
+  ];
+  var curFlag = '';
+  var curName = 'EN';
+  for (var li = 0; li < langs.length; li++) {
+    if (langs[li].code === curLang) { curFlag = langs[li].flag; curName = langs[li].name; break; }
+  }
+  var langItems = '';
+  for (var lj = 0; lj < langs.length; lj++) {
+    var l = langs[lj];
+    langItems += '<button class="lang-opt' + (l.code === curLang ? ' active' : '') +
+      '" data-lang="' + l.code + '" onclick="WWI18n.setLang(\'' + l.code + '\')">' +
+      '<span class="lang-opt-flag">' + l.flag + '</span>' +
+      '<span class="lang-opt-name">' + l.name + '</span></button>';
+  }
+  var langDropdown =
+    '<div class="lang-switcher" id="lang-switcher">' +
+      '<button class="lang-trigger" onclick="document.getElementById(\'lang-switcher\').classList.toggle(\'open\')" aria-label="Change language">' +
+        ico('globe', 'lang-globe') +
+        '<span class="lang-cur">' + curFlag + ' ' + curName + '</span>' +
+        '<svg class="lang-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '</button>' +
+      '<div class="lang-dropdown">' + langItems + '</div>' +
+    '</div>';
 
   var socials = function () {
     var icons = [
@@ -165,85 +191,105 @@
       { label: 'GitHub', d: 'M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.66-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .5z' }
     ];
     return icons.map(function (ic) {
-      return '<a href="#" aria-label="' + ic.label + '" title="' + ic.label + '">' +
+      return '<a href="#" aria-label="' + ic.label + '" title="' + ic.label + '" class="social-link">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + ic.d + '"/></svg></a>';
     }).join('');
   };
 
+  // Close language dropdown on outside click
+  document.addEventListener('click', function (e) {
+    var sw = document.getElementById('lang-switcher');
+    if (sw && !sw.contains(e.target)) sw.classList.remove('open');
+  });
+
+  // ---- HEADER ----
   if (header) {
     var page = header.dataset.page || 'landing';
     var links = '';
     var right = '';
-    var burger = '<button class="menu-btn" type="button" aria-label="Toggle menu" aria-expanded="false" onclick="WW.toggleNav()">&#9776;</button>';
+    var burger = '<button class="menu-btn" type="button" aria-label="' + (window.t ? t('nav.toggleMenu') : 'Toggle menu') + '" aria-expanded="false" onclick="WW.toggleNav()"><span class="burger-line"></span><span class="burger-line"></span><span class="burger-line"></span></button>';
 
     if (page === 'dash') {
       var role = header.dataset.role || '';
-      var roleIcon = role === 'admin' ? '🏛️' : role === 'collector' ? '🚛' : '🏠';
+      var roleIcon = role === 'admin' ? '\uD83C\uDFDB\uFE0F' : role === 'collector' ? '\uD83D\uDE9B' : '\uD83C\uDFE0';
       var roleLabel = role === 'admin' ? t('nav.roleAdmin') : role === 'collector' ? t('nav.roleCollector') : t('nav.roleResident');
       var chip = '<div class="user-chip">' +
         '<span class="avatar">' + roleIcon + '</span>' +
         '<span class="chip-info">' +
-        '<span class="chip-name" id="nav-name">…</span>' +
+        '<span class="chip-name" id="nav-name">\u2026</span>' +
         '<span class="chip-meta"><span class="chip-role">' + roleLabel + '</span>';
-      if (role === 'collector') chip += '<span class="chip-area">📍 <span id="nav-area">—</span></span>';
-      chip += '<span class="chip-pts">⭐ <span id="nav-points">0</span></span></span></span></div>';
+      if (role === 'collector') chip += '<span class="chip-area">\uD83D\uDCCD <span id="nav-area">\u2014</span></span>';
+      chip += '<span class="chip-pts">\u2B50 <span id="nav-points">0</span></span></span></span></div>';
       links = '<a class="nav-link" href="/">' + ico('home') + '<span>' + t('nav.home') + '</span></a>';
-      right = chip + '<button class="secondary nav-logout" onclick="WW.logout()">' + ico('logout') + '<span>' + t('nav.logout') + '</span></button>';
+      right = chip + langDropdown +
+        '<button class="nav-logout" onclick="WW.logout()">' + ico('logout') + '<span>' + t('nav.logout') + '</span></button>';
     } else if (page === 'auth') {
       links =
         '<a class="nav-link" href="/">' + ico('home') + '<span>' + t('nav.home') + '</span></a>' +
         '<a class="nav-link" href="/#how">' + ico('how') + '<span>' + t('nav.howItWorks') + '</span></a>' +
         '<a class="nav-link" href="/#features">' + ico('features') + '<span>' + t('nav.features') + '</span></a>';
-      right = '<a class="btn-ghost" href="/#roles">' + ico('back') + '<span>' + t('nav.backToRoles') + '</span></a>';
+      right = langDropdown +
+        '<a class="btn-ghost btn-nav" href="/#roles">' + ico('back') + '<span>' + t('nav.backToRoles') + '</span></a>';
     } else {
       links =
         '<a class="nav-link" href="#how">' + ico('how') + '<span>' + t('nav.howItWorks') + '</span></a>' +
         '<a class="nav-link" href="#features">' + ico('features') + '<span>' + t('nav.features') + '</span></a>' +
         '<a class="nav-link" href="#stats">' + ico('rewards') + '<span>' + t('nav.rewards') + '</span></a>';
-      right = '<a class="btn-cta" href="/auth/resident.html">' + t('nav.signIn') + '</a>';
+      right = langDropdown +
+        '<a class="btn-cta btn-nav" href="/auth/resident.html">' + t('nav.signIn') + '</a>';
     }
 
     header.innerHTML =
       '<div class="nav-inner">' + brand +
-      langSelect +
       '<nav class="site-nav" id="site-nav">' + links + '</nav>' +
       '<div class="nav-right">' + right + burger + '</div>' +
       '</div>';
   }
 
+  // ---- FOOTER ----
   if (footer) {
     var year = new Date().getFullYear();
     footer.innerHTML =
       '<div class="footer-glow"></div>' +
-      '<div class="footer-grid">' +
-        '<div class="footer-brand">' + brand.replace('wwg', 'wwf') +
-          '<p>' + t('footer.tagline') + '</p>' +
-          '<a class="btn-cta footer-cta" href="/auth/resident.html">' + t('footer.getStarted') + ' →</a>' +
-          '<div class="socials">' + socials() + '</div>' +
+      '<div class="footer-inner">' +
+        '<div class="footer-top">' +
+          '<div class="footer-brand-col">' +
+            '<a class="footer-brand-link" href="/" aria-label="WasteWise home">' + mark('wwf') +
+              '<span class="brand-text">Waste<span>Wise</span></span></a>' +
+            '<p class="footer-tagline">' + t('footer.tagline') + '</p>' +
+            '<a class="btn-cta footer-cta" href="/auth/resident.html">' + t('footer.getStarted') + ' \u2192</a>' +
+            '<div class="footer-socials">' + socials() + '</div>' +
+          '</div>' +
+          '<div class="footer-links-grid">' +
+            '<div class="footer-col">' +
+              '<h4>' + t('footer.explore') + '</h4>' +
+              '<a href="/">' + ico('home') + '<span>' + t('footer.home') + '</span></a>' +
+              '<a href="/auth/resident.html">\uD83C\uDFE0 <span>' + t('footer.residentPortal') + '</span></a>' +
+              '<a href="/auth/collector.html">\uD83D\uDE9B <span>' + t('footer.collectorPortal') + '</span></a>' +
+              '<a href="/auth/admin.html">\uD83C\uDFDB\uFE0F <span>' + t('footer.municipality') + '</span></a>' +
+            '</div>' +
+            '<div class="footer-col">' +
+              '<h4>' + t('footer.platform') + '</h4>' +
+              '<a href="/#how">' + ico('how') + '<span>' + t('footer.howItWorks') + '</span></a>' +
+              '<a href="/#features">' + ico('features') + '<span>' + t('footer.features') + '</span></a>' +
+              '<a href="/#stats">' + ico('rewards') + '<span>' + t('footer.rewardsAndPoints') + '</span></a>' +
+              '<a href="/#roles">\u2B50 <span>' + t('footer.roles') + '</span></a>' +
+            '</div>' +
+            '<div class="footer-col footer-contact">' +
+              '<h4>' + t('footer.contact') + '</h4>' +
+              '<a class="contact-item" href="mailto:hello@wastewise.app">' + ico('mail') + '<span>hello@wastewise.app</span></a>' +
+              '<span class="contact-item">' + ico('phone') + '<span>+91 98765 43210</span></span>' +
+              '<span class="contact-item">' + ico('pin') + '<span>Ward 12, Green City</span></span>' +
+              '<span class="contact-item">' + ico('clock') + '<span>Mon\u2013Sat \u00B7 7am\u20137pm</span></span>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
-        '<div class="footer-col"><h4>' + t('footer.explore') + '</h4>' +
-          '<a href="/">' + ico('home') + '<span>' + t('footer.home') + '</span></a>' +
-          '<a href="/auth/resident.html">🏠 <span>' + t('footer.residentPortal') + '</span></a>' +
-          '<a href="/auth/collector.html">🚛 <span>' + t('footer.collectorPortal') + '</span></a>' +
-          '<a href="/auth/admin.html">🏛️ <span>' + t('footer.municipality') + '</span></a>' +
+        '<div class="footer-divider"></div>' +
+        '<div class="footer-bottom">' +
+          '<span class="footer-copy">&copy; ' + year + ' WasteWise. ' + t('footer.builtFor') + '</span>' +
+          '<span class="footer-status"><span class="status-dot"></span> ' + t('footer.allSystemsOperational') + '</span>' +
+          '<span class="footer-legal"><a href="/#roles">' + t('footer.demoAccess') + '</a><a href="mailto:hello@wastewise.app">' + t('footer.support') + '</a></span>' +
         '</div>' +
-        '<div class="footer-col"><h4>' + t('footer.platform') + '</h4>' +
-          '<a href="/#how">' + ico('how') + '<span>' + t('footer.howItWorks') + '</span></a>' +
-          '<a href="/#features">' + ico('features') + '<span>' + t('footer.features') + '</span></a>' +
-          '<a href="/#stats">' + ico('rewards') + '<span>' + t('footer.rewardsAndPoints') + '</span></a>' +
-          '<a href="/#roles">⭐ <span>' + t('footer.roles') + '</span></a>' +
-        '</div>' +
-        '<div class="footer-col footer-contact"><h4>' + t('footer.contact') + '</h4>' +
-          '<a class="contact-item" href="mailto:hello@wastewise.app">' + ico('mail') + '<span>hello@wastewise.app</span></a>' +
-          '<span class="contact-item">' + ico('phone') + '<span>+91 98765 43210</span></span>' +
-          '<span class="contact-item">' + ico('pin') + '<span>Ward 12, Green City</span></span>' +
-          '<span class="contact-item">' + ico('clock') + '<span>Mon–Sat · 7am–7pm</span></span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="footer-bottom">' +
-        '<span>© ' + year + ' WasteWise · ' + t('footer.builtFor') + '</span>' +
-        '<span class="footer-status"><span class="status-dot"></span> ' + t('footer.allSystemsOperational') + '</span>' +
-        '<span class="footer-legal"><a href="/#roles">' + t('footer.demoAccess') + '</a><a href="mailto:hello@wastewise.app">' + t('footer.support') + '</a></span>' +
       '</div>';
   }
 
@@ -255,4 +301,13 @@
     var btn = header && header.querySelector('.menu-btn');
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
   };
+
+  // Scroll-aware header
+  if (header) {
+    var onScroll = function () {
+      header.classList.toggle('scrolled', window.scrollY > 20);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
 })();
