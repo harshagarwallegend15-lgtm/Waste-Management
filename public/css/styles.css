@@ -1401,6 +1401,7 @@ pre.mono { font-family: var(--mono); background: #0d1224; border: 1px solid var(
   .nav-inner { padding: 0 16px; height: 56px; gap: 14px; }
   .brand { margin-right: 0; }
   .nav-divider { display: none; }
+  .nav-sep { display: none; }
   .user-chip { font-size: 0.78rem; padding: 5px 10px; }
   .nav-logout { padding: 7px 12px; }
   .camera-box { max-width: 100%; }
