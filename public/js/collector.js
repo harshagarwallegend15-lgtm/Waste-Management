@@ -24,12 +24,14 @@ async function init() {
 let _poll = null;
 function startPoll() {
   if (_poll) return;
-  _poll = setInterval(() => loadResidents(), 15000);
+  _poll = setInterval(() => loadResidents(), 8000);
 }
 
 function stopCamera() {
   try { WWCamera.stop(); } catch {}
 }
+
+let _lastResidentsJson = '';
 
 async function loadResidents() {
   try {
@@ -37,26 +39,46 @@ async function loadResidents() {
     const { residents, area_id } = data;
     const areaName = await getAreaName(area_id);
     $('nav-area').textContent = areaName;
-    if (!residents.length) {
-      $('resident-list').innerHTML = '<div class="card"><p class="muted">No residents registered in your area yet.</p></div>';
-      return;
+    const snapshot = JSON.stringify(residents.map((r) => ({ id: r.id, pending: r.pending_requests.length, ids: r.pending_requests.map((q) => q.id) })));
+    if (snapshot !== _lastResidentsJson) {
+      _lastResidentsJson = snapshot;
+      renderSidebar(residents);
     }
-    const sorted = [...residents].sort((a, b) => (b.pending_requests.length) - (a.pending_requests.length));
-    $('resident-list').innerHTML = sorted.map((r) => `
-      <div class="card" style="margin-bottom:10px; display:flex; align-items:center; gap:14px;">
-        <div style="flex:1;">
-          <strong>${WW.escapeHtml(r.name)}</strong>
-          <div class="muted">${WW.escapeHtml(r.address_text || 'No address')}</div>
-          <div class="muted">Society: ${WW.escapeHtml(r.societies?.name || '—')}</div>
-        </div>
-        <div>
-          ${r.pending_requests.length ? `<span class="badge amber">${r.pending_requests.length} pending</span>` : '<span class="badge gray">No request</span>'}
-        </div>
-        <button class="${r.pending_requests.length ? '' : 'secondary'}" onclick="openResident('${r.id}')">Open →</button>
-      </div>`).join('');
+    if (selectedResident) {
+      const updated = residents.find((r) => r.id === selectedResident.id);
+      if (updated) {
+        selectedResident = updated;
+        if (updated.pending_requests.length) {
+          renderRequestList(updated);
+        } else {
+          closeWork();
+          WW.toast('All requests for this resident completed!');
+        }
+      }
+    }
   } catch (err) {
     $('resident-list').innerHTML = `<p class="muted">${WW.escapeHtml(err.message)}</p>`;
   }
+}
+
+function renderSidebar(residents) {
+  if (!residents.length) {
+    $('resident-list').innerHTML = '<div class="card"><p class="muted">No residents registered in your area yet.</p></div>';
+    return;
+  }
+  const sorted = [...residents].sort((a, b) => (b.pending_requests.length) - (a.pending_requests.length));
+  $('resident-list').innerHTML = sorted.map((r) => `
+    <div class="card" style="margin-bottom:10px; display:flex; align-items:center; gap:14px;">
+      <div style="flex:1;">
+        <strong>${WW.escapeHtml(r.name)}</strong>
+        <div class="muted">${WW.escapeHtml(r.address_text || 'No address')}</div>
+        <div class="muted">Society: ${WW.escapeHtml(r.societies?.name || '—')}</div>
+      </div>
+      <div>
+        ${r.pending_requests.length ? `<span class="badge amber">${r.pending_requests.length} pending</span>` : '<span class="badge gray">No request</span>'}
+      </div>
+      <button class="${r.pending_requests.length ? '' : 'secondary'}" onclick="openResident('${r.id}')">Open →</button>
+    </div>`).join('');
 }
 
 async function getAreaName(areaId) {
@@ -141,12 +163,15 @@ function renderRequestList(resident) {
     selectedRequest = null;
     return;
   }
-  selectedRequest = pending[0];
+  if (!selectedRequest || !pending.find((r) => r.id === selectedRequest.id)) {
+    selectedRequest = pending[0];
+  }
+  const selIdx = pending.findIndex((r) => r.id === selectedRequest.id);
   $('work-requests').innerHTML = pending.map((req, i) => `
-    <div class="request-item ${i === 0 ? 'selected' : ''}" onclick="selectRequest(${i})" style="display:flex; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer; border-radius:6px; ${i === 0 ? 'background:var(--bg-light,rgba(255,255,255,0.06));' : ''}">
+    <div class="request-item ${i === selIdx ? 'selected' : ''}" onclick="selectRequest(${i})" style="display:flex; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer; border-radius:6px; ${i === selIdx ? 'background:var(--bg-light,rgba(255,255,255,0.06));' : ''}">
       <span style="flex:1;">${WW.fmtDate(req.before_timestamp)}</span>
       <span class="badge ${req.waste_type === 'mixed' ? 'gray' : 'green'}">${WW.escapeHtml(req.waste_type)}</span>
-      ${req.before_photo_url ? `<img class="photo-thumb" src="${req.before_photo_url}" />` : ''}
+      ${req.before_photo_url ? `<img class="photo-thumb" src="${req.before_photo_url}?t=${Date.now()}" />` : ''}
     </div>`).join('');
 }
 
