@@ -146,8 +146,40 @@
   // ========== VOICE ==========
   var voiceEnabled = true;
   var recognition = null;
+  var listening = false;
   var synth = window.speechSynthesis || null;
   var speaking = false;
+
+  var LANG_VOICE_MAP = {
+    en: 'en-IN', hi: 'hi-IN', kn: 'kn-IN', ta: 'ta-IN', bn: 'bn-IN'
+  };
+
+  function getCurLang() {
+    return (window.WWI18n && window.WWI18n.getLang()) || 'en';
+  }
+
+  function getVoiceLang() {
+    return LANG_VOICE_MAP[getCurLang()] || 'en-IN';
+  }
+
+  function findVoice(langTag) {
+    var voices = synth ? synth.getVoices() : [];
+    var prefix = langTag.split('-')[0];
+    // Prefer local voice for the language, then any voice matching prefix
+    for (var i = 0; i < voices.length; i++) {
+      if (voices[i].lang === langTag && voices[i].localService) return voices[i];
+    }
+    for (var i = 0; i < voices.length; i++) {
+      if (voices[i].lang === langTag) return voices[i];
+    }
+    for (var i = 0; i < voices.length; i++) {
+      if (voices[i].lang.indexOf(prefix) === 0 && voices[i].localService) return voices[i];
+    }
+    for (var i = 0; i < voices.length; i++) {
+      if (voices[i].lang.indexOf(prefix) === 0) return voices[i];
+    }
+    return null;
+  }
 
   function initRecognition() {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -155,8 +187,8 @@
     var r = new SR();
     r.continuous = false;
     r.interimResults = false;
-    r.lang = 'en-IN';
     r.maxAlternatives = 1;
+    r.lang = getVoiceLang();
     return r;
   }
 
@@ -164,15 +196,15 @@
     if (!synth) return;
     synth.cancel();
     var clean = text.replace(/\*\*/g, '').replace(/\n+/g, '. ').replace(/[#*\-_]/g, '');
+    if (!clean.trim()) return;
     var utter = new SpeechSynthesisUtterance(clean);
-    utter.lang = 'en-IN';
+    var langTag = getVoiceLang();
+    utter.lang = langTag;
     utter.rate = 1.0;
     utter.pitch = 1.0;
     utter.volume = 1.0;
-    var voices = synth.getVoices();
-    for (var i = 0; i < voices.length; i++) {
-      if (voices[i].lang.indexOf('en') === 0 && voices[i].localService) { utter.voice = voices[i]; break; }
-    }
+    var voice = findVoice(langTag);
+    if (voice) utter.voice = voice;
     speaking = true;
     if (btn) btn.classList.add('speaking');
     utter.onend = function () { speaking = false; if (btn) btn.classList.remove('speaking'); };
@@ -180,16 +212,59 @@
     synth.speak(utter);
   }
 
+  function stopSpeaking() {
+    if (synth) synth.cancel();
+    speaking = false;
+    document.querySelectorAll('.chat-speak-btn.speaking').forEach(function (b) { b.classList.remove('speaking'); });
+  }
+
   function startListening(inputEl, sendFn) {
     if (!recognition) recognition = initRecognition();
-    if (!recognition) { alert('Voice input is not supported in your browser. Try Chrome!'); return; }
+    if (!recognition) {
+      alert('Voice input is not supported in your browser. Try Chrome or Edge!');
+      return;
+    }
+    // Stop any ongoing speech before listening
+    stopSpeaking();
+
     recognition.onresult = function (e) {
       var transcript = e.results[0][0].transcript;
       inputEl.value = transcript;
+      listening = false;
       sendFn();
     };
-    recognition.onerror = function () {};
-    recognition.start();
+    recognition.onerror = function (e) {
+      listening = false;
+      var micBtn = document.getElementById('chat-mic');
+      if (micBtn) micBtn.classList.remove('listening');
+      if (e.error === 'not-allowed') {
+        alert('Microphone access denied. Please allow microphone permissions in your browser settings.');
+      } else if (e.error === 'no-speech') {
+        // Silently handle — user just didn't say anything
+      } else if (e.error === 'network') {
+        alert('Voice recognition requires an internet connection.');
+      }
+    };
+    recognition.onend = function () {
+      listening = false;
+      var micBtn = document.getElementById('chat-mic');
+      if (micBtn) micBtn.classList.remove('listening');
+    };
+    try {
+      listening = true;
+      recognition.start();
+    } catch (err) {
+      listening = false;
+    }
+  }
+
+  function stopListening() {
+    if (recognition) {
+      try { recognition.stop(); } catch (e) { /* ignore */ }
+    }
+    listening = false;
+    var micBtn = document.getElementById('chat-mic');
+    if (micBtn) micBtn.classList.remove('listening');
   }
 
   // ========== UI ==========
@@ -254,11 +329,15 @@
       '</div>';
     document.body.appendChild(wrapper);
 
-    // Load voices
+    // Load voices and re-init recognition on language change
     if (synth) {
       synth.getVoices();
       if (synth.onvoiceschanged !== undefined) { synth.onvoiceschanged = function () { synth.getVoices(); }; }
     }
+    document.addEventListener('ww:i18n', function () {
+      recognition = null; // force re-init with new language on next mic press
+      stopSpeaking();
+    });
 
     var fab = document.getElementById('chat-fab');
     var panel = document.getElementById('chat-panel');
@@ -282,11 +361,11 @@
       fab.classList.remove('open');
     });
 
-    // Voice toggle
+    // Voice toggle — enable/disable voice responses
     voiceToggle.addEventListener('click', function () {
       voiceEnabled = !voiceEnabled;
       voiceToggle.classList.toggle('off', !voiceEnabled);
-      if (!voiceEnabled && synth) { synth.cancel(); speaking = false; document.querySelectorAll('.speaking').forEach(function (el) { el.classList.remove('speaking'); }); }
+      if (!voiceEnabled) stopSpeaking();
     });
 
     // Send message — tries Groq API first, falls back to local KB
@@ -343,17 +422,17 @@
 
     form.addEventListener('submit', function (e) { e.preventDefault(); sendMessage(); });
 
-    // Mic button
+    // Mic button — toggle voice input
     micBtn.addEventListener('click', function () {
-      if (recognition && recognition.running) { recognition.stop(); return; }
+      if (listening) {
+        stopListening();
+        return;
+      }
       micBtn.classList.add('listening');
       startListening(input, function () {
         micBtn.classList.remove('listening');
         sendMessage();
       });
-      if (recognition) {
-        recognition.onend = function () { micBtn.classList.remove('listening'); };
-      }
     });
 
     // Quick replies
@@ -364,10 +443,14 @@
       sendMessage();
     });
 
-    // Speak buttons (delegated)
+    // Speak buttons (delegated) — toggle play/stop
     messages.addEventListener('click', function (e) {
       var speakBtn = e.target.closest('.chat-speak-btn');
       if (!speakBtn) return;
+      if (speakBtn.classList.contains('speaking')) {
+        stopSpeaking();
+        return;
+      }
       var text = speakBtn.closest('.chat-msg-body').querySelector('.chat-msg-text').textContent;
       speakText(text, speakBtn);
     });
