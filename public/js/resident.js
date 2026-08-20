@@ -507,13 +507,24 @@ let quizQuestions = [];
 let quizAnswers = [];
 let quizCurrent = 0;
 let quizStarted = false;
+const QUIZ_LETTERS = ['A', 'B', 'C', 'D'];
 
 async function initQuiz() {
   if (quizStarted) return;
   try {
     const data = await WW.api('/api/learn-earn/quiz');
     if (!data.canPlay) {
-      $('quiz-area').innerHTML = '<div style="text-align:center;padding:30px 0;"><p style="font-size:1.2rem;">🕐</p><p style="font-weight:700;margin:10px 0;">' + data.message + '</p><p class="hint">Complete quizzes daily to earn up to 50 points per day.</p></div>';
+      $('quiz-area').innerHTML = `
+        <div class="quiz-card">
+          <div class="quiz-header"><h3>📚 Learn & Earn</h3><p>Daily quiz challenge</p></div>
+          <div class="quiz-body">
+            <div class="quiz-start-wrap">
+              <div class="quiz-start-icon">🕐</div>
+              <p class="quiz-start-title">${data.message}</p>
+              <p class="quiz-start-desc">Come back tomorrow for a fresh set of questions.<br>Max 50 points per day from quizzes.</p>
+            </div>
+          </div>
+        </div>`;
       loadQuizHistory();
       return;
     }
@@ -531,31 +542,38 @@ async function initQuiz() {
 function renderQuizQuestion() {
   const q = quizQuestions[quizCurrent];
   const total = quizQuestions.length;
-  const answered = quizAnswers[quizCurrent] >= 0;
-  const progress = Math.round(((quizCurrent + 1) / total) * 100);
+  const answered = quizAnswers.filter((a) => a >= 0).length;
+  const pct = Math.round(((quizCurrent + 1) / total) * 100);
 
   $('quiz-area').innerHTML = `
-    <div style="margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
-        <span>Question ${quizCurrent + 1} of ${total}</span>
-        <span>${progress}%</span>
+    <div class="quiz-card">
+      <div class="quiz-header">
+        <h3>📚 Learn & Earn Quiz</h3>
+        <p>5 points per correct answer</p>
       </div>
-      <div class="progress"><div class="bar" style="width:${progress}%"></div></div>
-    </div>
-    <h4 style="margin-bottom:14px;">${WW.escapeHtml(q.question)}</h4>
-    ${q.options.map((opt, i) => `
-      <label class="quiz-option" style="display:block; padding:12px 14px; margin-bottom:8px; border:2px solid var(--border); border-radius:10px; cursor:pointer; transition:all 0.2s; ${quizAnswers[quizCurrent] === i ? 'border-color:var(--c-accent); background:var(--accent-light);' : ''}" onclick="selectQuizOption(${i})">
-        <input type="radio" name="q${quizCurrent}" value="${i}" ${quizAnswers[quizCurrent] === i ? 'checked' : ''} style="margin-right:10px;" />
-        ${WW.escapeHtml(opt)}
-      </label>
-    `).join('')}
-    <div style="display:flex; gap:10px; margin-top:16px;">
-      ${quizCurrent > 0 ? '<button class="secondary" onclick="prevQuestion()">← Back</button>' : ''}
-      <div style="flex:1;"></div>
-      ${quizCurrent < total - 1
-        ? '<button onclick="nextQuestion()">Next →</button>'
-        : '<button onclick="submitQuiz()" style="background:var(--green-600); color:#fff;">Submit Quiz ✓</button>'
-      }
+      <div class="quiz-body">
+        <div class="quiz-progress-wrap">
+          <div class="quiz-progress-info">
+            <span>Question <b>${quizCurrent + 1}</b> of <b>${total}</b></span>
+            <span><b>${answered}</b> answered</span>
+          </div>
+          <div class="quiz-progress-bar"><div class="quiz-progress-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="quiz-question">${WW.escapeHtml(q.question)}</div>
+        ${q.options.map((opt, i) => `
+          <div class="quiz-option ${quizAnswers[quizCurrent] === i ? 'selected' : ''}" onclick="selectQuizOption(${i})">
+            <div class="quiz-option-letter">${QUIZ_LETTERS[i]}</div>
+            <span>${WW.escapeHtml(opt)}</span>
+          </div>
+        `).join('')}
+        <div class="quiz-nav">
+          ${quizCurrent > 0 ? '<button class="secondary" onclick="prevQuestion()">← Back</button>' : '<div></div>'}
+          <div class="spacer"></div>
+          ${quizCurrent < total - 1
+            ? '<button onclick="nextQuestion()">Next →</button>'
+            : `<button onclick="submitQuiz()" style="background:var(--green-600, #16a34a); color:#fff;">Submit Quiz ✓</button>`}
+        </div>
+      </div>
     </div>`;
 }
 
@@ -593,28 +611,41 @@ function showQuizResults(data) {
   const msg = pct >= 80 ? 'Excellent!' : pct >= 50 ? 'Good job!' : 'Keep learning!';
 
   $('quiz-area').innerHTML = `
-    <div style="text-align:center; padding:20px 0;">
-      <div style="font-size:3rem;">${emoji}</div>
-      <h2 style="margin:10px 0 4px;">${msg}</h2>
-      <p style="font-size:1.1rem; font-weight:700;">${data.score} / ${data.total} correct</p>
-      <p style="font-size:1.5rem; font-weight:800; color:var(--green-600); margin:10px 0;">+${data.pointsEarned} points</p>
-      <p class="hint" style="margin-top:4px;">Max possible: ${data.total * 5} points (${data.total} questions × 5 pts)</p>
-      <button style="margin-top:16px;" onclick="quizStarted=false;initQuiz();">Play Again Tomorrow</button>
-    </div>
-    <div style="margin-top:16px;">
-      <h4>Review your answers</h4>
-      ${data.results.map((r, i) => {
-        const q = quizQuestions[r.id];
-        if (!q) return '';
-        return `<div style="padding:10px; margin-bottom:8px; border-left:4px solid ${r.correct ? 'var(--green-500)' : 'var(--red-500)'}; background:var(--bg); border-radius:0 8px 8px 0;">
-          <p style="font-weight:700; margin:0 0 4px;">Q${i + 1}: ${WW.escapeHtml(q.question)}</p>
-          <p style="margin:0; font-size:0.9rem; color:${r.correct ? 'var(--green-600)' : 'var(--red-500)'};">
-            ${r.correct ? '✓ Correct!' : '✗ Wrong — Answer: ' + WW.escapeHtml(q.options[r.correctAnswer])}
-          </p>
-        </div>`;
-      }).join('')}
+    <div class="quiz-card">
+      <div class="quiz-header"><h3>📚 Quiz Complete!</h3><p>Results are in</p></div>
+      <div class="quiz-body">
+        <div class="quiz-results">
+          <div class="quiz-results-emoji">${emoji}</div>
+          <div class="quiz-results-title">${msg}</div>
+          <div class="quiz-results-score">${data.score} out of ${data.total} correct (${pct}%)</div>
+          <div class="quiz-results-points">+${data.pointsEarned} points earned</div>
+          <div class="quiz-results-sub">Max possible: ${data.total * 5} points · Come back tomorrow for more!</div>
+        </div>
+        <div class="quiz-review">
+          <div class="quiz-review-title">Review your answers</div>
+          ${data.results.map((r, i) => {
+            const q = quizQuestions[r.id];
+            if (!q) return '';
+            return `<div class="quiz-review-item ${r.correct ? 'correct' : 'wrong'}">
+              <p class="quiz-review-q">Q${i + 1}. ${WW.escapeHtml(q.question)}</p>
+              <p class="quiz-review-a ${r.correct ? 'correct' : 'wrong'}">
+                ${r.correct ? '✓ Correct!' : '✗ Wrong — Correct answer: ' + WW.escapeHtml(q.options[r.correctAnswer])}
+              </p>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="quiz-nav" style="justify-content:center; margin-top:20px;">
+          <button onclick="quizStarted=false;initQuiz();">Play Again Tomorrow</button>
+        </div>
+      </div>
     </div>`;
 
+  if (typeof $('nav-points') !== 'undefined' && $('nav-points')) {
+    $('nav-points').textContent = data.newBalance ?? $('nav-points').textContent;
+  }
+  if (typeof $('side-points') !== 'undefined' && $('side-points')) {
+    $('side-points').textContent = data.newBalance ?? $('side-points').textContent;
+  }
   loadQuizHistory();
   loadPoints();
 }

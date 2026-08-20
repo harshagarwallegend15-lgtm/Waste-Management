@@ -122,17 +122,20 @@ router.post('/submit', authRequired, roleGuard('resident'), async (req, res) => 
 
     const pointsEarned = score * POINTS_PER_CORRECT;
 
-    const { error: insErr } = await db
+    const { data: session, error: insErr } = await db
       .from('learn_earn_sessions')
-      .insert({ user_id: userId, score, total: QUESTIONS_PER_QUIZ, points_earned: pointsEarned });
+      .insert({ user_id: userId, score, total: QUESTIONS_PER_QUIZ, points_earned: pointsEarned })
+      .select('id')
+      .single();
 
     if (insErr) throw insErr;
 
     if (pointsEarned > 0) {
-      await addPoints(userId, pointsEarned, `Quiz: ${score}/${QUESTIONS_PER_QUIZ} correct`, 'learn_earn', null);
+      const ptResult = await addPoints(userId, pointsEarned, `Quiz: ${score}/${QUESTIONS_PER_QUIZ} correct`, 'learn_earn', session.id);
+      if (!ptResult) console.error('Learn & Earn: addPoints returned null for user', userId);
     }
 
-    return res.json({ score, total: QUESTIONS_PER_QUIZ, pointsEarned, results });
+    return res.json({ score, total: QUESTIONS_PER_QUIZ, pointsEarned, results, newBalance: (req.profile.points || 0) + pointsEarned });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
