@@ -596,7 +596,7 @@ async function submitQuiz() {
     if (!confirm(`You have ${unanswered} unanswered question(s). Submit anyway?`)) return;
   }
 
-  const answers = quizAnswers.map((selected, id) => ({ id, selected: selected >= 0 ? selected : -1 }));
+  const answers = quizAnswers.map((selected, id) => ({ id, qi: quizQuestions[id]?.qi ?? id, selected: selected >= 0 ? selected : -1 }));
   try {
     const data = await WW.api('/api/learn-earn/submit', { method: 'POST', body: { answers } });
     showQuizResults(data);

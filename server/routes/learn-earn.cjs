@@ -72,9 +72,10 @@ router.get('/quiz', authRequired, roleGuard('resident'), async (req, res) => {
       return res.json({ canPlay: false, message: 'You have already played today. Come back tomorrow!' });
     }
 
-    const picked = shuffle(QUESTIONS).slice(0, QUESTIONS_PER_QUIZ);
+    const picked = shuffle(QUESTIONS.map((q, qi) => ({ ...q, qi }))).slice(0, QUESTIONS_PER_QUIZ);
     const questions = picked.map((q, i) => ({
       id: i,
+      qi: q.qi,
       question: q.q,
       options: q.options,
     }));
@@ -113,7 +114,7 @@ router.post('/submit', authRequired, roleGuard('resident'), async (req, res) => 
 
     let score = 0;
     const results = answers.map((a) => {
-      const q = QUESTIONS[a.id];
+      const q = QUESTIONS[a.qi ?? a.id];
       if (!q) return { id: a.id, correct: false };
       const isCorrect = a.selected === q.correct;
       if (isCorrect) score++;
