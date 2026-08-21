@@ -97,7 +97,7 @@ router.get('/area-residents', authRequired, roleGuard('collector'), async (req, 
   // Residents with area_id set directly
   const { data: directResidents } = await db
     .from('profiles')
-    .select('id, name, address_text, gps_lat, gps_lng, phone, society_id, society_id, societies(name, area_id)')
+    .select('id, name, address_text, gps_lat, gps_lng, phone, society_id, societies(name, area_id)')
     .eq('role', 'resident')
     .eq('area_id', areaId);
 
@@ -122,12 +122,14 @@ router.get('/area-residents', authRequired, roleGuard('collector'), async (req, 
 
   if (!residents.length) return res.json({ area_id: areaId, residents: [] });
 
-  // Also fetch requests with null area_id that belong to these residents
   const residentIds = residents.map((r) => r.id);
+
+  // Only fetch requests that belong to residents in this area (defense-in-depth)
   const { data: directRequests } = await db
     .from('collection_requests')
     .select('*')
     .eq('area_id', areaId)
+    .in('resident_id', residentIds)
     .in('status', ['pending', 'collected'])
     .order('created_at', { ascending: false });
 
