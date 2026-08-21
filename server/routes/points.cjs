@@ -5,6 +5,13 @@ const { authRequired, roleGuard } = require('../middleware/auth.cjs');
 
 // ---- My points + transaction history ----
 router.get('/me', authRequired, async (req, res) => {
+  const { data: fresh, error: fErr } = await db
+    .from('profiles')
+    .select('points')
+    .eq('id', req.profile.id)
+    .single();
+  const points = fErr ? req.profile.points : (fresh?.points ?? req.profile.points);
+
   const { data, error } = await db
     .from('points_transactions')
     .select('*')
@@ -12,7 +19,7 @@ router.get('/me', authRequired, async (req, res) => {
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) return res.status(400).json({ error: error.message });
-  return res.json({ points: req.profile.points, transactions: data || [] });
+  return res.json({ points, transactions: data || [] });
 });
 
 module.exports = router;

@@ -10,12 +10,7 @@ async function init() {
   $('nav-points').textContent = profile.points ?? 0;
   $('side-points').textContent = profile.points ?? 0;
 
-  try {
-    await WWCamera.start($('req-video'));
-    $('req-status').textContent = t('res.cameraReady') + '. ' + t('res.createRequestDesc');
-  } catch {
-    $('req-status').textContent = t('res.cameraUnavailable');
-  }
+  startCameraFor($('req-video'), 'req-status');
 
   loadHistory();
   loadMyReports();
@@ -53,11 +48,22 @@ function startSocietyPoll() {
   societyPoll = setInterval(() => loadSocieties(), 30000);
 }
 
+async function startCameraFor(videoEl, statusId) {
+  try {
+    await WWCamera.start(videoEl);
+    if (statusId) $(statusId).textContent = t('res.cameraReady');
+  } catch {
+    if (statusId) $(statusId).textContent = t('res.cameraUnavailable');
+  }
+}
+
 function showTab(name) {
   document.querySelectorAll('.page-tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   ['request', 'society', 'history', 'report', 'problems', 'challenges', 'learn', 'points'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
   if (name === 'society') loadSocieties();
   if (name === 'learn') initQuiz();
+  if (name === 'request') startCameraFor($('req-video'), 'req-status');
+  if (name === 'report') startCameraFor($('rep-video'), 'rep-status');
 }
 
 // ---------- Request collection ----------

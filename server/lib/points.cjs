@@ -12,13 +12,6 @@ const RULES = {
  * Returns the new balance, or null on failure.
  */
 async function addPoints(userId, delta, reason, sourceType, sourceId) {
-  const { data: txn, error: tErr } = await db
-    .from('points_transactions')
-    .insert({ user_id: userId, delta, reason, source_type: sourceType, source_id: sourceId })
-    .select()
-    .single();
-  if (tErr) return null;
-
   const { data: profile, error: pErr } = await db
     .from('profiles')
     .select('points')
@@ -29,6 +22,13 @@ async function addPoints(userId, delta, reason, sourceType, sourceId) {
   const newPoints = (profile.points || 0) + delta;
   const { error: uErr } = await db.from('profiles').update({ points: newPoints }).eq('id', userId);
   if (uErr) return null;
+
+  const { data: txn, error: tErr } = await db
+    .from('points_transactions')
+    .insert({ user_id: userId, delta, reason, source_type: sourceType, source_id: sourceId })
+    .select()
+    .single();
+  if (tErr) return null;
 
   return { txn, newPoints };
 }
