@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WasteWise — System Architecture & Dataflow</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0a0e17; color: #e0e0e0; padding: 2rem; min-height: 100vh; }
+    h1 { text-align: center; font-size: 1.8rem; margin-bottom: 0.3rem; color: #fff; }
+    .subtitle { text-align: center; color: #7a8ba6; font-size: 0.9rem; margin-bottom: 2rem; }
+    .section { margin-bottom: 2.5rem; }
+    .section-title { font-size: 1.1rem; font-weight: 700; color: #2ca01c; margin-bottom: 1rem; padding-left: 0.5rem; border-left: 3px solid #2ca01c; }
+
+    /* ── Flow containers ── */
+    .flow { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+    .flow-col { display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 200px; max-width: 340px; flex: 1; }
+
+    /* ── Nodes ── */
+    .node {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 0.7rem 1rem; text-align: center; width: 100%;
+      position: relative; backdrop-filter: blur(8px); transition: border-color 0.2s;
+    }
+    .node:hover { border-color: rgba(44,160,28,0.4); }
+    .node .icon { font-size: 1.4rem; margin-bottom: 0.2rem; }
+    .node .label { font-weight: 600; font-size: 0.82rem; color: #fff; }
+    .node .desc { font-size: 0.7rem; color: #7a8ba6; margin-top: 0.15rem; line-height: 1.3; }
+
+    .node.user { border-color: #3b82f6; }
+    .node.server { border-color: #f59e0b; }
+    .node.db { border-color: #8b5cf6; }
+    .node.ai { border-color: #ef4444; }
+    .node.storage { border-color: #06b6d4; }
+    .node.external { border-color: #ec4899; }
+    .node.success { border-color: #22c55e; }
+    .node.decision { border-color: #f97316; border-style: dashed; }
+
+    .node.user .label { color: #60a5fa; }
+    .node.server .label { color: #fbbf24; }
+    .node.db .label { color: #a78bfa; }
+    .node.ai .label { color: #f87171; }
+    .node.storage .label { color: #22d3ee; }
+    .node.external .label { color: #f472b6; }
+    .node.success .label { color: #4ade80; }
+    .node.decision .label { color: #fb923c; }
+
+    /* ── Arrows ── */
+    .arrow {
+      display: flex; flex-direction: column; align-items: center; padding: 0.25rem 0; color: #4a5568;
+    }
+    .arrow .line { width: 2px; height: 18px; background: #334155; }
+    .arrow .head { font-size: 0.7rem; color: #4a5568; line-height: 1; }
+    .arrow .text { font-size: 0.6rem; color: #64748b; margin: 0.1rem 0; font-style: italic; }
+
+    /* ── Side labels ── */
+    .side-label {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      font-size: 0.6rem; color: #64748b; font-style: italic; white-space: nowrap;
+    }
+    .side-label.left { right: calc(100% + 0.8rem); }
+    .side-label.right { left: calc(100% + 0.8rem); }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;
+      margin-top: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.02);
+      border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: #94a3b8; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+    /* ── Parallel flows ── */
+    .parallel { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; }
+
+    /* ── Tech badge ── */
+    .tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; }
+    .tech-card {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; padding: 0.8rem 1rem;
+    }
+    .tech-card h4 { font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tech-card p { font-size: 0.75rem; color: #cbd5e1; line-height: 1.4; }
+    .tech-card .highlight { color: #2ca01c; font-weight: 600; }
+
+    /* ── Wide flow ── */
+    .wide-flow {
+      display: flex; align-items: flex-start; gap: 0; justify-content: center;
+      overflow-x: auto; padding: 0.5rem 0;
+    }
+    .wide-flow .node { min-width: 150px; max-width: 180px; }
+    .wide-flow .arrow .line { height: 2px; width: 30px; background: #334155; }
+    .wide-flow .arrow { flex-direction: row; padding: 0; }
+    .wide-flow .arrow .line { height: 2px; width: 30px; }
+    .wide-flow .arrow .head { transform: rotate(90deg); }
+    .wide-flow .arrow .text { writing-mode: horizontal-tb; margin: 0 0.3rem; }
+  </style>
+</head>
+<body>
+
+<h1>🗑️ WasteWise — System Architecture</h1>
+<p class="subtitle">AI-Powered Community Waste Management Platform</p>
+
+<!-- ── LEGEND ── -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> User / Browser</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Express Server</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Database (Supabase)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div> Storage</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> AI / Groq API</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div> External Auth</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> Decision Point</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div> Success / Output</div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 1: TECH STACK -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">⚙️ Tech Stack</div>
+  <div class="tech-grid">
+    <div class="tech-card"><h4>Frontend</h4><p><span class="highlight">Vanilla HTML/CSS/JS</span> — No framework. Glassmorphism UI, dark theme, responsive.</p></div>
+    <div class="tech-card"><h4>Backend</h4><p><span class="highlight">Node.js + Express</span> on <span class="highlight">Vercel Serverless</span> functions.</p></div>
+    <div class="tech-card"><h4>Database</h4><p><span class="highlight">Supabase (PostgreSQL)</span> with RLS policies, Realtime subscriptions.</p></div>
+    <div class="tech-card"><h4>Authentication</h4><p><span class="highlight">Supabase Auth</span> — Email/password + Google OAuth + email verification.</p></div>
+    <div class="tech-card"><h4>AI Vision</h4><p><span class="highlight">Groq API</span> — qwen/qwen3.6-27b (photo), llama-3.3-70b (chatbot).</p></div>
+    <div class="tech-card"><h4>Storage</h4><p><span class="highlight">Supabase Storage</span> — waste-photos bucket (public), before/after images.</p></div>
+    <div class="tech-card"><h4>i18n</h4><p><span class="highlight">5 Languages</span> — English, Hindi, Kannada, Tamil, Bengali.</p></div>
+    <div class="tech-card"><h4>Realtime</h4><p><span class="highlight">Supabase Realtime</span> — Postgres CDC → live dashboards + 8s polling fallback.</p></div>
+    <div class="tech-card"><h4>Device APIs</h4><p><span class="highlight">Geolocation</span>, <span class="highlight">getUserMedia</span> (camera), <span class="highlight">Web Speech API</span> (voice).</p></div>
+    <div class="tech-card"><h4>CI/CD</h4><p><span class="highlight">GitHub Actions</span> (Node 20/22 matrix) → <span class="highlight">Vercel</span> auto-deploy on push.</p></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 2: AUTH FLOW -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🔐 Authentication Flow</div>
+  <div class="wide-flow">
+    <div class="node user">
+      <div class="icon">👤</div>
+      <div class="label">Resident visits<br>/auth/resident.html</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">🔀</div>
+      <div class="label">Email/Password<br>or Google?</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">⚡</div>
+      <div class="label">POST /api/auth/register<br>or /api/auth/google</div>
+      <div class="desc">Creates auth.users + profiles row</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">📧</div>
+      <div class="label">Email<br>verified?</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">📍</div>
+      <div class="label">Has society<br>+ GPS?</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node success">
+      <div class="icon">🏠</div>
+      <div class="label">Dashboard<br>/resident.html</div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top:0.5rem;">
+    <span style="font-size:0.65rem; color:#64748b;">No society? → </span>
+    <span style="font-size:0.65rem; color:#22d3ee;">GPS request → Society picker → PATCH /api/societies/me → Dashboard</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 3: COLLECTION REQUEST FLOW -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🗑️ Collection Request Flow (Core)</div>
+
+  <div style="text-align:center; margin-bottom:0.8rem;">
+    <span style="display:inline-block; background:rgba(59,130,246,0.15); color:#60a5fa; padding:0.2rem 0.7rem; border-radius:6px; font-size:0.7rem; font-weight:600;">RESIDENT SIDE</span>
+  </div>
+
+  <div class="wide-flow">
+    <div class="node user">
+      <div class="icon">📸</div>
+      <div class="label">Camera captures<br>Before Photo</div>
+      <div class="desc">getUserMedia API</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">🛡️</div>
+      <div class="label">assertGarbagePhoto()</div>
+      <div class="desc">Face/landscape rejection<br>Garbage confidence check</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node storage">
+      <div class="icon">☁️</div>
+      <div class="label">Upload to<br>Supabase Storage</div>
+      <div class="desc">waste-photos/requests/{id}</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node db">
+      <div class="icon">💾</div>
+      <div class="label">INSERT<br>collection_requests</div>
+      <div class="desc">area_id derived from society</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node success">
+      <div class="icon">✅</div>
+      <div class="label">Request Created</div>
+      <div class="desc">Realtime INSERT fires</div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin: 1.5rem 0 0.8rem;">
+    <span style="display:inline-block; background:rgba(245,158,11,0.15); color:#fbbf24; padding:0.2rem 0.7rem; border-radius:6px; font-size:0.7rem; font-weight:600;">COLLECTOR SIDE</span>
+  </div>
+
+  <div class="wide-flow">
+    <div class="node db">
+      <div class="icon">📡</div>
+      <div class="label">GET /area-residents</div>
+      <div class="desc">Filtered by area_id<br>+ null-area fallback</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node user">
+      <div class="icon">🗂️</div>
+      <div class="label">Collector sees<br>Resident Cards</div>
+      <div class="desc">Sorted by GPS distance</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node user">
+      <div class="icon">📸</div>
+      <div class="label">Camera captures<br>After Photo</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">✅</div>
+      <div class="label">POST /requests/:id/complete</div>
+      <div class="desc">Uploads after-photo</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">🔍</div>
+      <div class="label">verifyCollection()</div>
+      <div class="desc">CV scoring + AI confirm</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">⚖️</div>
+      <div class="label">Verified?</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node success">
+      <div class="icon">🏆</div>
+      <div class="label">+20 pts Resident<br>+10 pts Collector</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 4: AI VERIFICATION PIPELINE -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🤖 AI Verification Pipeline</div>
+  <div class="wide-flow">
+    <div class="node server">
+      <div class="icon">🖼️</div>
+      <div class="label">Before + After<br>Photos</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">🔬</div>
+      <div class="label">Local CV Scoring</div>
+      <div class="desc">skinToneFraction (face)<br>landscape detection<br>garbage confidence</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">📊</div>
+      <div class="label">Score ≥ 0.62?</div>
+      <div class="desc">GARBAGE_LOCAL_MIN</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node ai">
+      <div class="icon">🧠</div>
+      <div class="label">Groq AI Vision</div>
+      <div class="desc">qwen/qwen3.6-27b<br>Sends public HTTP URLs<br>reasoning_effort: none</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">📊</div>
+      <div class="label">AI Score ≥ 0.30?</div>
+      <div class="desc">GARBAGE_AI_MIN</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node success">
+      <div class="icon">✅</div>
+      <div class="label">VERIFIED</div>
+      <div class="desc">Points awarded</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 5: POINTS & REWARDS -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">💰 Points & Rewards System</div>
+  <div class="parallel">
+    <div class="flow-col">
+      <div class="node success" style="border-color:#22c55e">
+        <div class="icon">🗑️</div>
+        <div class="label">Verified Collection</div>
+        <div class="desc">Resident +20 · Collector +10</div>
+      </div>
+    </div>
+    <div class="flow-col">
+      <div class="node success" style="border-color:#3b82f6">
+        <div class="icon">📋</div>
+        <div class="label">Verified Report</div>
+        <div class="desc">Reporter +15</div>
+      </div>
+    </div>
+    <div class="flow-col">
+      <div class="node success" style="border-color:#8b5cf6">
+        <div class="icon">📚</div>
+        <div class="label">Quiz Correct</div>
+        <div class="desc">+5 per answer · Max 50/day</div>
+      </div>
+    </div>
+    <div class="flow-col">
+      <div class="node success" style="border-color:#f59e0b">
+        <div class="icon">🎯</div>
+        <div class="label">Challenge Bonus</div>
+        <div class="desc">All residents earn bonus</div>
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top:1rem;">
+    <div class="node server" style="display:inline-block; max-width:500px;">
+      <div class="icon">⚙️</div>
+      <div class="label">addPoints(profileId, amount, type, sourceId)</div>
+      <div class="desc">UPDATE profiles.points (realtime fires) → INSERT points_transactions → recomputeSocietyScore()</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 6: CHATBOT -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">💬 Chatbot & Voice Flow</div>
+  <div class="wide-flow">
+    <div class="node user">
+      <div class="icon">🗣️</div>
+      <div class="label">Type or Speak<br>(Web Speech API)</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">📡</div>
+      <div class="label">POST /api/chat</div>
+      <div class="desc">{message, history[], lang}</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node ai">
+      <div class="icon">🧠</div>
+      <div class="label">Groq llama-3.3-70b</div>
+      <div class="desc">System prompt: full KB<br>16-turn conversation history<br>Language-aware [LANG:xx] tags</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">⏱️</div>
+      <div class="label">20s timeout?</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node success">
+      <div class="icon">💬</div>
+      <div class="label">Response + Voice</div>
+      <div class="desc">Markdown rendered<br>SpeechSynthesis output</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 7: DATABASE SCHEMA -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">💾 Database Schema (Key Tables)</div>
+  <div class="tech-grid">
+    <div class="tech-card"><h4>profiles</h4><p>id, email, role, name, phone, <span class="highlight">society_id</span>, <span class="highlight">area_id</span>, gps_lat, gps_lng, points</p></div>
+    <div class="tech-card"><h4>collection_requests</h4><p>id, <span class="highlight">resident_id</span>, <span class="highlight">collector_id</span>, society_id, area_id, status, before/after_photo_url, gps, timestamps</p></div>
+    <div class="tech-card"><h4>areas</h4><p>id, name (Zone A, B, C)</p></div>
+    <div class="tech-card"><h4>societies</h4><p>id, name, address, <span class="highlight">area_id</span>, gps_lat, gps_lng</p></div>
+    <div class="tech-card"><h4>dumping_reports</h4><p>id, reporter_id, photo_url, description, status, gps</p></div>
+    <div class="tech-card"><h4>points_transactions</h4><p>id, profile_id, amount, type, source_id</p></div>
+    <div class="tech-card"><h4>society_scores</h4><p>society_id, score, period_end (daily snapshots)</p></div>
+    <div class="tech-card"><h4>challenges</h4><p>id, type, target, society_id, status, bonus_points</p></div>
+    <div class="tech-card"><h4>society_problems</h4><p>id, society_id, reporter_id, title, description, status</p></div>
+    <div class="tech-card"><h4>learn_earn_sessions</h4><p>id, resident_id, score, answers, created_at</p></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 8: REALTIME -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">📡 Realtime Architecture</div>
+  <div class="wide-flow">
+    <div class="node db">
+      <div class="icon">🐘</div>
+      <div class="label">PostgreSQL<br>INSERT / UPDATE</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">📡</div>
+      <div class="label">Supabase Realtime<br>(WebSocket CDC)</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node user">
+      <div class="icon">🖥️</div>
+      <div class="label">Dashboard JS<br>Callback fires</div>
+      <div class="desc">UI re-renders instantly</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node success">
+      <div class="icon">🔄</div>
+      <div class="label">Live Updates</div>
+      <div class="desc">8s polling fallback<br>if WebSocket stalls</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 9: SECURITY -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🔒 Security Layers</div>
+  <div class="parallel">
+    <div class="flow-col" style="max-width:250px;">
+      <div class="node server">
+        <div class="icon">🛡️</div>
+        <div class="label">RLS Policies</div>
+        <div class="desc">profiles: own-row CRUD only<br>requests: public read<br>All writes via server key</div>
+      </div>
+    </div>
+    <div class="flow-col" style="max-width:250px;">
+      <div class="node server">
+        <div class="icon">🔑</div>
+        <div class="label">Auth Middleware</div>
+        <div class="desc">JWT verification<br>roleGuard('resident'|'collector'|'admin')</div>
+      </div>
+    </div>
+    <div class="flow-col" style="max-width:250px;">
+      <div class="node server">
+        <div class="icon">📍</div>
+        <div class="label">Area Restriction</div>
+        <div class="desc">Collector can only access<br>requests in their area_id</div>
+      </div>
+    </div>
+    <div class="flow-col" style="max-width:250px;">
+      <div class="node server">
+        <div class="icon">📸</div>
+        <div class="label">Garbage Gate</div>
+        <div class="desc">Face/landscape rejection<br>CV + AI dual scoring</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 10: OVERALL SYSTEM -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🏗️ Overall System Map</div>
+  <div class="wide-flow" style="justify-content:center;">
+    <div class="node user" style="min-width:120px;">
+      <div class="icon">👤</div>
+      <div class="label">Resident</div>
+      <div class="desc">Browser + Camera + GPS</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server" style="min-width:120px;">
+      <div class="icon">⚡</div>
+      <div class="label">Express API</div>
+      <div class="desc">15+ routes<br>Auth, CRUD, AI</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">↔</div></div>
+    <div class="node db" style="min-width:120px;">
+      <div class="icon">🐘</div>
+      <div class="label">Supabase</div>
+      <div class="desc">PostgreSQL + RLS<br>Realtime + Storage</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">↔</div></div>
+    <div class="node ai" style="min-width:120px;">
+      <div class="icon">🧠</div>
+      <div class="label">Groq AI</div>
+      <div class="desc">Vision + Chat<br>2 models</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node external" style="min-width:120px;">
+      <div class="icon">📧</div>
+      <div class="label">Email + OAuth</div>
+      <div class="desc">Verification<br>Google Sign-In</div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:1.5rem;">
+    <div class="node user" style="display:inline-block; max-width:160px; margin:0 0.5rem;">
+      <div class="icon">🗂️</div>
+      <div class="label">Collector</div>
+      <div class="desc">GPS tracking<br>Area-restricted</div>
+    </div>
+    <div class="node user" style="display:inline-block; max-width:160px; margin:0 0.5rem;">
+      <div class="icon">👑</div>
+      <div class="label">Admin</div>
+      <div class="desc">Override, verify<br>Challenges, quiz</div>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center; color:#475569; font-size:0.7rem; margin-top:2rem;">WasteWise — Built with ❤️ for cleaner communities · 5 languages · AI-powered · Real-time</p>
+
+</body>
+</html>

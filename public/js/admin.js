@@ -12,8 +12,11 @@ async function init() {
   loadLeaderboard();
   loadAllUsers();
 
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => loadLeaderboard());
-  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => { loadLeaderboard(); loadProblems(); });
+  // Periodic dashboard refresh (every 30s) for live tracking
+  setInterval(() => loadDashboard(), 30000);
+
+  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => { loadLeaderboard(); loadDashboard(); });
+  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => { loadLeaderboard(); loadProblems(); loadDashboard(); });
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'collection_requests' }, () => loadDashboard());
   WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests' }, () => { loadCollections(); loadDashboard(); });
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'society_problems' }, () => { loadProblems(); loadDashboard(); });
@@ -37,33 +40,170 @@ function showTab(name) {
 
 async function loadDashboard() {
   try {
-    const { kpis, hotspots, trends } = await WW.api('/api/admin/dashboard');
+    const { kpis, hotspots, trends, areaBreakdown, collectorActivity, feed } = await WW.api('/api/admin/dashboard');
+
+    // KPIs
     $('kpi-residents').textContent = kpis.residents;
     $('kpi-collectors').textContent = kpis.collectors;
     $('kpi-requests').textContent = kpis.requests;
-    $('kpi-verified').textContent = kpis.verified_requests;
-    $('kpi-flagged').textContent = kpis.flagged_requests;
     $('kpi-reports').textContent = kpis.pending_reports;
-    $('kpi-verified-reports').textContent = kpis.verified_reports;
     $('kpi-problems').textContent = kpis.open_problems;
 
-    $('hotspots').innerHTML = hotspots.length
-      ? hotspots.map((h) => `
-        <div class="card hotspot" style="margin-bottom:10px;">
-          <strong>${h.count} ${h.count > 1 ? t('admin.incidents') : t('admin.incident')}</strong> ${h.area ? `· ${WW.escapeHtml(h.area)}` : ''}
-          <div class="pin"><a href="https://www.google.com/maps?q=${h.lat},${h.lng}" target="_blank">${t('admin.viewOnMap')}</a></div>
-          <p class="hint">${h.sample.map((s) => WW.fmtDate(s.timestamp)).join(', ')}</p>
-        </div>`).join('')
-      : '<p class="muted">' + t('admin.noVerifiedDumping') + '</p>';
+    // Pipeline
+    $('pipe-pending').textContent = kpis.pending_requests;
+    $('pipe-collected').textContent = kpis.collected_requests;
+    $('pipe-verified').textContent = kpis.verified_requests;
+    $('pipe-flagged').textContent = kpis.flagged_requests;
+    $('pipe-rejected').textContent = kpis.rejected_requests;
+    renderPipelineBar(kpis);
 
-    $('trends').innerHTML = `
-      <table>
-        <thead><tr><th>${t('admin.day')}</th><th>${t('admin.requests')}</th><th>${t('admin.verified')}</th><th>${t('admin.reports')}</th><th>${t('admin.verified')}</th></tr></thead>
-        <tbody>${trends.map((t) => `
-          <tr><td>${t.date}</td><td>${t.requests}</td><td>${t.verified}</td><td>${t.reports}</td><td>${t.verified_reports}</td></tr>`).join('')}
-        </tbody>
-      </table>`;
+    // Area breakdown
+    renderAreaBreakdown(areaBreakdown);
+
+    // Collector activity
+    renderCollectorActivity(collectorActivity);
+
+    // Trends chart
+    renderTrendsChart(trends);
+
+    // Hotspots
+    renderHotspots(hotspots);
+
+    // Activity feed
+    renderActivityFeed(feed);
   } catch (err) { WW.toast(err.message, true); }
+}
+
+function renderPipelineBar(kpis) {
+  const total = kpis.requests || 1;
+  const segments = [
+    { label: 'Pending', count: kpis.pending_requests, color: '#f59e0b' },
+    { label: 'Collected', count: kpis.collected_requests, color: '#3b82f6' },
+    { label: 'Verified', count: kpis.verified_requests, color: '#22c55e' },
+    { label: 'Flagged', count: kpis.flagged_requests, color: '#f97316' },
+    { label: 'Rejected', count: kpis.rejected_requests, color: '#ef4444' },
+  ];
+  $('pipeline-bar-wrap').innerHTML =
+    '<div class="pipeline-bar">' +
+    segments.map((s) => {
+      const pct = Math.round((s.count / total) * 100);
+      return pct > 0 ? `<div class="pipeline-seg" style="width:${pct}%; background:${s.color};" title="${s.label}: ${s.count} (${pct}%)"></div>` : '';
+    }).join('') +
+    '</div>' +
+    '<div class="pipeline-legend">' +
+    segments.map((s) => `<span class="pipeline-legend-item"><span class="pipeline-legend-dot" style="background:${s.color};"></span>${s.label}: ${s.count}</span>`).join('') +
+    '</div>';
+}
+
+function renderAreaBreakdown(areas) {
+  const el = $('area-breakdown');
+  if (!areas || !areas.length) { el.innerHTML = '<p class="muted">No area data yet.</p>'; return; }
+  el.innerHTML = areas.map((a) => {
+    const rate = a.verifyRate;
+    const rateColor = rate >= 60 ? 'var(--green-500)' : rate >= 30 ? 'var(--amber-500)' : 'var(--red-500)';
+    return `
+    <div class="area-card">
+      <div class="area-header">
+        <span class="area-name">${WW.escapeHtml(a.name)}</span>
+        <span class="area-rate" style="color:${rateColor};">${rate}% verified</span>
+      </div>
+      <div class="area-stats">
+        <span>📦 ${a.requests} req</span>
+        <span>✅ ${a.verified} verified</span>
+        <span>🔍 ${a.flagged} flagged</span>
+        <span>⏳ ${a.pending} pending</span>
+        <span>🚨 ${a.reports} reports</span>
+      </div>
+      <div class="area-bar-wrap">
+        <div class="area-bar">
+          <div class="area-bar-seg" style="width:${a.requests ? (a.verified / a.requests) * 100 : 0}%; background:var(--green-500);"></div>
+          <div class="area-bar-seg" style="width:${a.requests ? (a.flagged / a.requests) * 100 : 0}%; background:var(--amber-500);"></div>
+        </div>
+      </div>
+      ${a.societies.length ? `<div class="area-societies">${a.societies.map((s) => `<span class="area-soc-tag">${WW.escapeHtml(s)}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderCollectorActivity(collectors) {
+  const el = $('collector-activity');
+  if (!collectors || !collectors.length) { el.innerHTML = '<p class="muted">No collectors yet.</p>'; return; }
+  el.innerHTML = collectors.map((c) => {
+    const lastTime = c.lastRequest?.after_timestamp || c.lastRequest?.before_timestamp;
+    const isActive = lastTime && (Date.now() - new Date(lastTime).getTime() < 3600000);
+    const statusClass = isActive ? 'online' : 'offline';
+    return `
+    <div class="collector-card">
+      <div class="collector-header">
+        <span class="collector-name">${WW.escapeHtml(c.name)}</span>
+        <span class="collector-status ${statusClass}">${isActive ? '● Active' : '○ Inactive'}</span>
+      </div>
+      <div class="collector-stats">
+        <span>📍 ${WW.escapeHtml(c.area)}</span>
+        <span>✅ ${c.totalCompleted} completed</span>
+        <span>📦 ${c.pendingAssigned} in progress</span>
+      </div>
+      ${lastTime ? `<div class="collector-last">Last activity: ${WW.fmtDate(lastTime)}</div>` : '<div class="collector-last">No activity yet</div>'}
+    </div>`;
+  }).join('');
+}
+
+function renderTrendsChart(trends) {
+  const el = $('trends-chart');
+  if (!trends || !trends.length) { el.innerHTML = '<p class="muted">No trend data.</p>'; return; }
+  const maxVal = Math.max(1, ...trends.map((t) => Math.max(t.requests, t.verified, t.reports)));
+  el.innerHTML =
+    '<div class="trends-chart-wrap">' +
+    trends.map((t) => {
+      const reqH = Math.round((t.requests / maxVal) * 100);
+      const verH = Math.round((t.verified / maxVal) * 100);
+      const repH = Math.round((t.reports / maxVal) * 100);
+      const day = t.date.slice(5);
+      return `
+      <div class="trend-col" title="${t.date}\nRequests: ${t.requests}\nVerified: ${t.verified}\nReports: ${t.reports}">
+        <div class="trend-bars">
+          <div class="trend-bar blue" style="height:${reqH}%;"></div>
+          <div class="trend-bar green" style="height:${verH}%;"></div>
+          <div class="trend-bar red" style="height:${repH}%;"></div>
+        </div>
+        <div class="trend-label">${day}</div>
+      </div>`;
+    }).join('') +
+    '</div>' +
+    '<div class="trends-legend">' +
+    '<span class="trends-legend-item"><span class="trends-legend-dot" style="background:#3b82f6;"></span>Requests</span>' +
+    '<span class="trends-legend-item"><span class="trends-legend-dot" style="background:#22c55e;"></span>Verified</span>' +
+    '<span class="trends-legend-item"><span class="trends-legend-dot" style="background:#ef4444;"></span>Reports</span>' +
+    '</div>';
+}
+
+function renderHotspots(hotspots) {
+  const el = $('hotspots');
+  if (!hotspots || !hotspots.length) { el.innerHTML = '<p class="muted">No verified dumping hotspots yet.</p>'; return; }
+  el.innerHTML = hotspots.map((h) => `
+    <div class="hotspot-card">
+      <div class="hotspot-header">
+        <span class="hotspot-count">${h.count} incident${h.count > 1 ? 's' : ''}</span>
+        ${h.area ? `<span class="hotspot-area">${WW.escapeHtml(h.area)}</span>` : ''}
+      </div>
+      <div class="hotspot-meta">${h.sample.map((s) => WW.fmtDate(s.timestamp)).join(' · ')}</div>
+      <a class="hotspot-map" href="https://www.google.com/maps?q=${h.lat},${h.lng}" target="_blank">📍 View on map</a>
+    </div>`).join('');
+}
+
+function renderActivityFeed(feed) {
+  const el = $('activity-feed');
+  if (!feed || !feed.length) { el.innerHTML = '<p class="muted">No activity yet.</p>'; return; }
+  el.innerHTML = feed.map((e) => {
+    const icon = e.type === 'request' ? '📦' : e.type === 'report' ? '🚨' : e.type === 'problem' ? '🔧' : '💰';
+    const statusClass = e.status === 'verified' ? 'green' : e.status === 'rejected' || e.status === 'flagged' ? 'red' : e.status === 'pending' ? 'amber' : 'blue';
+    return `
+    <div class="feed-item">
+      <span class="feed-icon">${icon}</span>
+      <span class="feed-detail">${WW.escapeHtml(e.detail)}</span>
+      <span class="feed-time">${WW.fmtDate(e.timestamp)}</span>
+    </div>`;
+  }).join('');
 }
 
 // ---------- Verifications ----------

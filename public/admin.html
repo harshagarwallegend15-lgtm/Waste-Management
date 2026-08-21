@@ -24,26 +24,79 @@
 
     <!-- OVERVIEW -->
     <section id="tab-overview">
-      <div class="grid grid-3" id="kpi-grid" style="margin-bottom:16px;">
-        <div class="card kpi"><div class="num" id="kpi-residents">—</div><div class="lab" data-i18n="admin.kpiResidents">Residents</div></div>
-        <div class="card kpi"><div class="num" id="kpi-collectors">—</div><div class="lab" data-i18n="admin.kpiCollectors">Collectors</div></div>
-        <div class="card kpi"><div class="num" id="kpi-requests">—</div><div class="lab" data-i18n="admin.kpiRequests">Collection requests</div></div>
-        <div class="card kpi"><div class="num" id="kpi-verified">—</div><div class="lab" data-i18n="admin.kpiVerified">Verified collections</div></div>
-        <div class="card kpi"><div class="num" id="kpi-flagged">—</div><div class="lab" data-i18n="admin.kpiFlagged">Flagged (needs review)</div></div>
-        <div class="card kpi"><div class="num" id="kpi-reports">—</div><div class="lab" data-i18n="admin.kpiPendingReports">Pending reports</div></div>
-        <div class="card kpi"><div class="num" id="kpi-verified-reports">—</div><div class="lab" data-i18n="admin.kpiVerifiedReports">Verified reports</div></div>
-        <div class="card kpi"><div class="num" id="kpi-problems">—</div><div class="lab" data-i18n="admin.kpiProblems">Open problems</div></div>
+      <!-- Top KPIs -->
+      <div class="admin-kpi-row">
+        <div class="admin-kpi-card blue">
+          <div class="admin-kpi-icon">👥</div>
+          <div class="admin-kpi-num" id="kpi-residents">—</div>
+          <div class="admin-kpi-lab">Residents</div>
+        </div>
+        <div class="admin-kpi-card amber">
+          <div class="admin-kpi-icon">🚛</div>
+          <div class="admin-kpi-num" id="kpi-collectors">—</div>
+          <div class="admin-kpi-lab">Collectors</div>
+        </div>
+        <div class="admin-kpi-card green">
+          <div class="admin-kpi-icon">📦</div>
+          <div class="admin-kpi-num" id="kpi-requests">—</div>
+          <div class="admin-kpi-lab">Total Requests</div>
+        </div>
+        <div class="admin-kpi-card red">
+          <div class="admin-kpi-icon">🚨</div>
+          <div class="admin-kpi-num" id="kpi-reports">—</div>
+          <div class="admin-kpi-lab">Pending Reports</div>
+        </div>
+        <div class="admin-kpi-card purple">
+          <div class="admin-kpi-icon">🔧</div>
+          <div class="admin-kpi-num" id="kpi-problems">—</div>
+          <div class="admin-kpi-lab">Open Problems</div>
+        </div>
       </div>
 
-      <div class="grid grid-2">
+      <!-- Status Pipeline -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3>📊 Collection Pipeline — Request → Collected → Verified</h3>
+        <div class="pipeline-row" id="pipeline-row">
+          <div class="pipeline-stage"><div class="pipeline-num" id="pipe-pending">—</div><div class="pipeline-lab">Pending</div></div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-stage"><div class="pipeline-num" id="pipe-collected">—</div><div class="pipeline-lab">Collected</div></div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-stage"><div class="pipeline-num green" id="pipe-verified">—</div><div class="pipeline-lab">Verified</div></div>
+          <div class="pipeline-divider"></div>
+          <div class="pipeline-stage"><div class="pipeline-num amber" id="pipe-flagged">—</div><div class="pipeline-lab">Flagged</div></div>
+          <div class="pipeline-stage"><div class="pipeline-num red" id="pipe-rejected">—</div><div class="pipeline-lab">Rejected</div></div>
+        </div>
+        <div class="pipeline-bar-wrap" id="pipeline-bar-wrap"></div>
+      </div>
+
+      <!-- Area Performance + Collector Activity -->
+      <div class="grid grid-2" style="margin-bottom:16px;">
         <div class="card">
-          <h3 data-i18n="admin.dumpingHotspots">🔥 Dumping hotspots (verified)</h3>
+          <h3>📍 Area Performance</h3>
+          <div id="area-breakdown"><p class="muted">Loading…</p></div>
+        </div>
+        <div class="card">
+          <h3>🚛 Collector Activity</h3>
+          <div id="collector-activity"><p class="muted">Loading…</p></div>
+        </div>
+      </div>
+
+      <!-- Trends + Hotspots -->
+      <div class="grid grid-2" style="margin-bottom:16px;">
+        <div class="card">
+          <h3>📈 14-Day Trends</h3>
+          <div id="trends-chart"><p class="muted">Loading…</p></div>
+        </div>
+        <div class="card">
+          <h3>🔥 Dumping Hotspots</h3>
           <div id="hotspots"><p class="muted">Loading…</p></div>
         </div>
-        <div class="card">
-          <h3 data-i18n="admin.trends14Day">📈 14-day trends</h3>
-          <div id="trends"><p class="muted">Loading…</p></div>
-        </div>
+      </div>
+
+      <!-- Live Activity Feed -->
+      <div class="card">
+        <h3>📡 Live Activity Feed <span class="pulse-dot"></span></h3>
+        <div id="activity-feed" class="activity-feed"><p class="muted">Loading…</p></div>
       </div>
     </section>
 
