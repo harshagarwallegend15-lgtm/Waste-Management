@@ -5,45 +5,100 @@ let selectedResident = null;
 let selectedRequest = null;
 let arrived = false;
 let workPhoto = null;
+let collectorGps = null;
 
 async function init() {
   if (!profile) return;
   $('nav-name').textContent = profile.name;
   $('nav-points').textContent = profile.points ?? 0;
-  await loadResidents();
-  loadPoints();
+
+  // Track collector GPS on login
+  try {
+    const pos = await WWGps.get(true, 10000);
+    collectorGps = { lat: pos.lat, lng: pos.lng };
+    $('gps-status').textContent = '📍 Location tracked: ' + pos.lat.toFixed(4) + ', ' + pos.lng.toFixed(4);
+    $('gps-status').style.color = 'var(--green-600, #16a34a)';
+  } catch {
+    collectorGps = null;
+    $('gps-status').textContent = '📍 Enable location to see distances to residents';
+    $('gps-status').style.color = '';
+  }
+
+  await loadAreaRequests();
   loadLeaderboard();
 
-  const rt = WWRealtime.subscribe({ event: '*', schema: 'public', table: 'collection_requests' }, () => loadResidents());
+  WWRealtime.subscribe({ event: '*', schema: 'public', table: 'collection_requests' }, () => loadAreaRequests());
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions', filter: `user_id=eq.${profile.id}` }, () => { loadPoints(); loadLeaderboard(); });
   WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => loadLeaderboard());
   WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => loadLeaderboard());
-  if (!rt) startPoll();
+
+  startPoll();
 }
 
 let _poll = null;
 function startPoll() {
   if (_poll) return;
-  _poll = setInterval(() => loadResidents(), 8000);
+  _poll = setInterval(() => loadAreaRequests(), 10000);
 }
 
 function stopCamera() {
   try { WWCamera.stop(); } catch {}
 }
 
-let _lastResidentsJson = '';
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-async function loadResidents() {
+function fmtDist(km) {
+  if (km == null) return '';
+  return km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km';
+}
+
+let _lastAreaJson = '';
+
+async function loadAreaRequests() {
   try {
     const data = await WW.api('/api/requests/area-residents');
     const { residents, area_id } = data;
     const areaName = await getAreaName(area_id);
     $('nav-area').textContent = areaName;
-    const snapshot = JSON.stringify(residents.map((r) => ({ id: r.id, pending: r.pending_requests.length, ids: r.pending_requests.map((q) => q.id) })));
-    if (snapshot !== _lastResidentsJson) {
-      _lastResidentsJson = snapshot;
-      renderSidebar(residents);
-    }
+
+    const allRequests = [];
+    residents.forEach((r) => {
+      r.pending_requests.forEach((req) => {
+        const dist = (collectorGps && r.gps_lat && r.gps_lng)
+          ? haversine(collectorGps.lat, collectorGps.lng, r.gps_lat, r.gps_lng)
+          : null;
+        allRequests.push({
+          ...req,
+          resident_name: r.name,
+          resident_id: r.id,
+          resident_address: r.address_text,
+          resident_society: r.societies?.name || '',
+          resident_gps_lat: r.gps_lat,
+          resident_gps_lng: r.gps_lng,
+          distance: dist,
+        });
+      });
+    });
+
+    allRequests.sort((a, b) => {
+      if (a.distance != null && b.distance != null) return a.distance - b.distance;
+      if (a.distance != null) return -1;
+      if (b.distance != null) return 1;
+      return 0;
+    });
+
+    const snapshot = JSON.stringify(allRequests.map((r) => r.id));
+    if (snapshot === _lastAreaJson) return;
+    _lastAreaJson = snapshot;
+
+    renderAreaRequests(allRequests, residents);
+
     if (selectedResident) {
       const updated = residents.find((r) => r.id === selectedResident.id);
       if (updated) {
@@ -52,32 +107,37 @@ async function loadResidents() {
           renderRequestList(updated);
         } else {
           closeWork();
-          WW.toast(t('col.allCompleted'));
+          WW.toast('All requests completed for this resident!');
         }
       }
     }
   } catch (err) {
-    $('resident-list').innerHTML = `<p class="muted">${WW.escapeHtml(err.message)}</p>`;
+    $('area-requests-list').innerHTML = `<p class="muted">${WW.escapeHtml(err.message)}</p>`;
   }
 }
 
-function renderSidebar(residents) {
-  if (!residents.length) {
-    $('resident-list').innerHTML = '<div class="card"><p class="muted">' + t('col.noResidents') + '</p></div>';
+function renderAreaRequests(requests, residents) {
+  if (!requests.length) {
+    $('area-requests-list').innerHTML = '<div class="card"><p class="muted" style="text-align:center; padding:20px;">No pending requests in your area right now.</p></div>';
+    $('area-stats').textContent = '0 pending requests';
     return;
   }
-  const sorted = [...residents].sort((a, b) => (b.pending_requests.length) - (a.pending_requests.length));
-  $('resident-list').innerHTML = sorted.map((r) => `
-    <div class="card" style="margin-bottom:10px; display:flex; align-items:center; gap:14px;">
-      <div style="flex:1;">
-        <strong>${WW.escapeHtml(r.name)}</strong>
-        <div class="muted">${WW.escapeHtml(r.address_text || t('col.noAddress'))}</div>
-        <div class="muted">${t('col.societyLabel')}: ${WW.escapeHtml(r.societies?.name || '—')}</div>
+
+  $('area-stats').textContent = requests.length + ' pending request' + (requests.length !== 1 ? 's' : '') + ' from ' + residents.filter((r) => r.pending_requests.length > 0).length + ' resident' + (residents.filter((r) => r.pending_requests.length > 0).length !== 1 ? 's' : '');
+
+  $('area-requests-list').innerHTML = requests.map((req) => `
+    <div class="card" style="margin-bottom:10px; display:flex; align-items:center; gap:14px; ${req.distance != null && req.distance < 1 ? 'border-left:3px solid var(--green-500, #22c55e);' : ''}">
+      <div style="flex:1; min-width:0;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <strong style="white-space:nowrap;">${WW.escapeHtml(req.resident_name)}</strong>
+          ${req.distance != null ? `<span class="badge ${req.distance < 1 ? 'green' : req.distance < 3 ? 'amber' : 'gray'}" style="font-size:0.75rem;">📍 ${fmtDist(req.distance)}</span>` : ''}
+          <span class="badge ${req.waste_type === 'wet' ? 'green' : req.waste_type === 'dry' ? 'blue' : req.waste_type === 'hazardous' ? 'red' : 'gray'}" style="font-size:0.75rem;">${WW.escapeHtml(req.waste_type)}</span>
+        </div>
+        <div class="muted" style="font-size:0.85rem; margin-top:2px;">${WW.escapeHtml(req.resident_address || 'No address')}</div>
+        ${req.resident_society ? `<div class="muted" style="font-size:0.82rem;">🏘️ ${WW.escapeHtml(req.resident_society)}</div>` : ''}
       </div>
-      <div>
-        ${r.pending_requests.length ? `<span class="badge amber">${r.pending_requests.length} ${t('col.pending')}</span>` : `<span class="badge gray">${t('col.noRequest')}</span>`}
-      </div>
-      <button class="${r.pending_requests.length ? '' : 'secondary'}" onclick="openResident('${r.id}')">${t('col.openBtn')} →</button>
+      ${req.before_photo_url ? `<img class="photo-thumb" src="${req.before_photo_url}" style="flex-shrink:0;" />` : ''}
+      <button onclick="openResident('${req.resident_id}')" style="flex-shrink:0;">Open →</button>
     </div>`).join('');
 }
 
@@ -85,18 +145,18 @@ async function getAreaName(areaId) {
   try {
     const data = await WW.api('/api/meta');
     const a = data.areas.find((x) => x.id === areaId);
-    return a ? a.name : t('col.areaAssigned');
-  } catch { return t('col.areaAssigned'); }
+    return a ? a.name : 'Your area';
+  } catch { return 'Your area'; }
 }
 
 async function openResident(id) {
   $('work').classList.remove('hidden');
-  $('work-name').textContent = t('col.loading');
+  $('work-name').textContent = 'Loading...';
   $('work-address').textContent = '';
   $('work-map').innerHTML = '';
   $('work-requests').innerHTML = '';
   $('work-result').innerHTML = '';
-  $('work-status').textContent = t('col.fetchingData');
+  $('work-status').textContent = 'Fetching data...';
   $('work-arrived').classList.add('hidden');
   stopCamera();
   $('work').scrollIntoView({ behavior: 'smooth' });
@@ -107,13 +167,13 @@ async function openResident(id) {
     residents = data.residents;
   } catch { residents = null; }
   if (!residents) {
-    $('work-status').textContent = t('col.couldNotLoad');
-    return WW.toast(t('col.couldNotLoad'), true);
+    $('work-status').textContent = 'Could not load resident data';
+    return WW.toast('Could not load resident data', true);
   }
   const resident = residents.find((r) => r.id === id);
   if (!resident) {
-    $('work-status').textContent = t('col.residentNotFound');
-    return WW.toast(t('col.residentNotFound'), true);
+    $('work-status').textContent = 'Resident not found in your area';
+    return WW.toast('Resident not found in your area', true);
   }
   selectedResident = resident;
   arrived = false;
@@ -121,37 +181,39 @@ async function openResident(id) {
   window._arrivedGps = null;
 
   $('work-name').textContent = resident.name;
-  $('work-address').textContent = resident.address_text || t('col.noAddressOnFile');
+  $('work-address').textContent = resident.address_text || 'No address on file';
   $('work-map').innerHTML = resident.gps_lat
-    ? `📍 <a href="${WWGps.mapsUrl(resident.gps_lat, resident.gps_lng)}" target="_blank">${t('col.viewOnMap')}</a>`
-    : `<span class="muted">${t('col.noGpsSaved')}</span>`;
+    ? `📍 <a href="${WWGps.mapsUrl(resident.gps_lat, resident.gps_lng)}" target="_blank">View on map</a>`
+    : `<span class="muted">No GPS saved</span>`;
 
   if (resident.gps_lat) {
-    $('work-status').textContent = t('col.gpsCheckPrompt');
+    const dist = collectorGps ? haversine(collectorGps.lat, collectorGps.lng, resident.gps_lat, resident.gps_lng) : null;
+    $('work-status').textContent = dist != null
+      ? `Distance: ${fmtDist(dist)} — tap "I'm at the location" when you arrive`
+      : 'Tap "I\'m at the location" when you arrive at the resident\'s location';
     $('work-arrived').classList.remove('hidden');
   } else {
     $('work-arrived').classList.add('hidden');
     arrived = true;
-    $('work-status').textContent = t('col.photoVerificationOnly');
+    $('work-status').textContent = 'Photo verification only (no GPS on file)';
   }
 
   renderRequestList(resident);
-
   $('work-retake').click();
 
   try {
     WWCamera.start($('work-video')).then(() => {
       if (!window._arrivedGps && !arrived) {
-        $('work-status').textContent += ' ' + t('col.cameraReady');
+        $('work-status').textContent += ' — Camera ready';
       }
     }).catch(() => {
       if (!window._arrivedGps && !arrived) {
-        $('work-status').textContent += ' ' + t('col.cameraUnavailable');
+        $('work-status').textContent += ' — Camera unavailable';
       }
     });
   } catch {
     if (!window._arrivedGps && !arrived) {
-      $('work-status').textContent += ' ' + t('col.cameraUnavailable');
+      $('work-status').textContent += ' — Camera unavailable';
     }
   }
 }
@@ -159,7 +221,7 @@ async function openResident(id) {
 function renderRequestList(resident) {
   const pending = resident.pending_requests;
   if (!pending.length) {
-    $('work-requests').innerHTML = '<p class="muted">' + t('col.requestListEmpty') + '</p>';
+    $('work-requests').innerHTML = '<p class="muted">No pending requests.</p>';
     selectedRequest = null;
     return;
   }
@@ -193,22 +255,22 @@ function selectRequest(index) {
   $('work-retake').click();
 
   if (selectedResident.gps_lat) {
-    $('work-status').textContent = t('col.gpsCheckPrompt');
+    $('work-status').textContent = 'Tap "I\'m at the location" when you arrive';
     $('work-arrived').classList.remove('hidden');
   } else {
     $('work-arrived').classList.add('hidden');
     arrived = true;
-    $('work-status').textContent = t('col.photoVerificationOnly');
+    $('work-status').textContent = 'Photo verification only (no GPS on file)';
   }
 
   try {
     WWCamera.start($('work-video')).then(() => {
-      $('work-status').textContent += ' ' + t('col.cameraReady');
+      $('work-status').textContent += ' — Camera ready';
     }).catch(() => {
-      $('work-status').textContent += ' ' + t('col.cameraUnavailable');
+      $('work-status').textContent += ' — Camera unavailable';
     });
   } catch {
-    $('work-status').textContent += ' ' + t('col.cameraUnavailable');
+    $('work-status').textContent += ' — Camera unavailable';
   }
 }
 
@@ -223,26 +285,27 @@ function closeWork() {
 }
 
 async function markArrived() {
-  if (!selectedResident?.gps_lat) { arrived = true; $('work-status').textContent = t('col.arrivedNoGps'); return; }
+  if (!selectedResident?.gps_lat) { arrived = true; $('work-status').textContent = 'Arrived (no GPS)'; return; }
   $('work-arrived').disabled = true;
-  $('work-status').textContent = t('col.checkingGps');
+  $('work-status').textContent = 'Checking GPS...';
   try {
     const pos = await WWGps.get();
     window._arrivedGps = { lat: pos.lat, lng: pos.lng };
     arrived = true;
-    $('work-status').textContent = t('col.arrivedGps') + ` (${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)})`;
+    const dist = haversine(pos.lat, pos.lng, selectedResident.gps_lat, selectedResident.gps_lng);
+    $('work-status').textContent = `Arrived! (${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}) — ${fmtDist(dist)} from resident`;
   } catch (err) {
     arrived = true;
-    $('work-status').textContent = t('col.gpsCheckFailed') + ' ' + err.message;
+    $('work-status').textContent = 'GPS check failed: ' + err.message;
   }
   $('work-arrived').disabled = false;
 }
 
 $('work-capture').onclick = async () => {
-  if (!selectedRequest) return WW.toast(t('col.selectRequestFirst'), true);
+  if (!selectedRequest) return WW.toast('Select a request first', true);
   try {
     const shot = await WWCamera.capture($('work-video'));
-    $('work-status').textContent = t('col.checkingPhoto');
+    $('work-status').textContent = 'Checking photo...';
     try {
       await WWGarbage.checkPhoto(shot.blob, 'after-photo');
     } catch (e) {
@@ -257,8 +320,9 @@ $('work-capture').onclick = async () => {
     $('work-capture').classList.add('hidden');
     $('work-retake').classList.remove('hidden');
     $('work-submit').classList.remove('hidden');
+    $('work-status').textContent = 'Photo captured — ready to submit';
   } catch (e) {
-    $('work-status').textContent = t('col.captureFailed') + ': ' + e.message;
+    $('work-status').textContent = 'Capture failed: ' + e.message;
   }
 };
 
@@ -272,11 +336,11 @@ $('work-retake').onclick = () => {
 };
 
 $('work-submit').onclick = async () => {
-  if (!selectedRequest) return WW.toast(t('col.noRequestSelected'), true);
-  if (!workPhoto) return WW.toast(t('col.markArrivedFirst'), true);
-  if (!arrived) return WW.toast(t('col.markArrivedFirst'), true);
+  if (!selectedRequest) return WW.toast('Select a request first', true);
+  if (!workPhoto) return WW.toast('Capture a photo first', true);
+  if (!arrived) return WW.toast('Mark arrival first', true);
   $('work-submit').disabled = true;
-  $('work-status').textContent = t('col.verifying');
+  $('work-status').textContent = 'Verifying...';
   try {
     let gps = window._arrivedGps || { lat: profile.gps_lat, lng: profile.gps_lng };
     try { if (!window._arrivedGps) { const pos = await WWGps.get(); gps = { lat: pos.lat, lng: pos.lng }; } } catch {}
@@ -290,17 +354,18 @@ $('work-submit').onclick = async () => {
       const collectorPts = data.points.find((p) => p.user_id === profile.id);
       if (collectorPts) {
         $('nav-points').textContent = collectorPts.newPoints;
-        WW.toast(t('col.verifiedPoints', { delta: collectorPts.txn.delta }));
+        WW.toast(`+${collectorPts.txn.delta} points awarded!`);
       }
     }
     workPhoto = null;
     arrived = false;
     window._arrivedGps = null;
-    await loadResidents();
+    _lastAreaJson = '';
+    await loadAreaRequests();
     loadPoints();
     loadLeaderboard();
     if (selectedResident) {
-      const refreshed = (await (await fetch('/api/requests/area-residents', { headers: { Authorization: 'Bearer ' + WW.getToken() } })).json()).residents;
+      const refreshed = (await WW.api('/api/requests/area-residents')).residents;
       const updated = refreshed.find((r) => r.id === selectedResident.id);
       if (updated && updated.pending_requests.length) {
         selectedResident = updated;
@@ -308,7 +373,7 @@ $('work-submit').onclick = async () => {
         selectRequest(0);
       } else {
         closeWork();
-        WW.toast(t('col.allCompleted'));
+        WW.toast('All requests completed for this resident!');
       }
     }
   } catch (err) {
@@ -321,18 +386,18 @@ $('work-submit').onclick = async () => {
 function renderResult(v) {
   const score = v.cv_score != null ? (v.cv_score * 100).toFixed(0) : '—';
   let verdictHtml;
-  if (v.verdict === 'verified') verdictHtml = '<span class="badge green">' + t('col.VERIFIED') + ' ✅</span>';
-  else if (v.verdict === 'flagged') verdictHtml = '<span class="badge red">' + t('col.FLAGGED') + '</span>';
-  else verdictHtml = '<span class="badge gray">' + t('col.REJECTED') + '</span>';
+  if (v.verdict === 'verified') verdictHtml = '<span class="badge green">VERIFIED ✅</span>';
+  else if (v.verdict === 'flagged') verdictHtml = '<span class="badge red">FLAGGED</span>';
+  else verdictHtml = '<span class="badge gray">REJECTED</span>';
 
   const reasons = (v.reasons || []).map((r) => `• ${WW.escapeHtml(r.reason)}`).join('<br/>');
 
   $('work-result').innerHTML = `
-    <h3>${t('col.verificationResult')} ${verdictHtml}</h3>
-    <p style="margin-top:8px;">${t('col.matchScore')}: <b>${score}%</b> (${t('col.method')}: ${v.cv_method || 'local'})</p>
-    ${v.ai_reason ? `<p class="muted">${t('col.aiVerdict')}: ${WW.escapeHtml(v.ai_reason)}</p>` : ''}
+    <h3>Verification Result ${verdictHtml}</h3>
+    <p style="margin-top:8px;">Match Score: <b>${score}%</b> (method: ${v.cv_method || 'local'})</p>
+    ${v.ai_reason ? `<p class="muted">AI verdict: ${WW.escapeHtml(v.ai_reason)}</p>` : ''}
     <p class="muted" style="margin-top:6px;">${reasons}</p>
-    ${v.verdict === 'verified' ? `<p class="hint" style="margin-top:8px;">${t('col.pointsHint')}</p>` : `<p class="hint" style="margin-top:8px;">${t('col.adminReviewHint')}</p>`}`;
+    ${v.verdict === 'verified' ? `<p class="hint" style="margin-top:8px;">Points awarded to both you and the resident.</p>` : `<p class="hint" style="margin-top:8px;">Flagged for admin review.</p>`}`;
   $('work-result').scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -356,7 +421,7 @@ async function loadLeaderboard() {
             <div class="name">${WW.escapeHtml(r.name)}</div>
             <div class="pts">${r.points}</div>
           </div>`).join('')
-        : '<p class="muted">' + t('col.noCollectors') + '</p>';
+        : '<p class="muted">No collectors yet</p>';
     }
   } catch {}
 }
