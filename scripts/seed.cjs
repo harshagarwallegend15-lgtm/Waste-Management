@@ -147,6 +147,23 @@ async function main() {
   console.log('\nCollector credentials (all use password: Collector@123):');
   COLLECTORS.forEach((c) => console.log(`  ${c.name.padEnd(18)} ${c.email.padEnd(28)} → ${AREAS[c.area]}`));
   console.log(`\n  Admin: ${ADMIN.email} / ${ADMIN.password}`);
+
+  // Auto-confirm all unconfirmed auth users (dev convenience)
+  if (SERVICE_KEY) {
+    console.log('\nConfirming all unconfirmed auth users...');
+    const { data: allUsers } = await admin.auth.admin.listUsers();
+    let confirmed = 0;
+    for (const u of (allUsers?.users || [])) {
+      if (!u.email_confirmed_at) {
+        try {
+          await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
+          confirmed++;
+          console.log(`  ✓ Confirmed: ${u.email}`);
+        } catch {}
+      }
+    }
+    console.log(`  ✓ Total confirmed: ${confirmed}`);
+  }
 }
 
 main().catch((e) => {

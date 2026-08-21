@@ -173,4 +173,33 @@ router.post('/confirm', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/confirm-all
+ * Admin-only: auto-confirms all unconfirmed auth users.
+ * Dev convenience — removes email confirmation barrier for seed accounts.
+ */
+router.post('/confirm-all', authRequired, async (req, res) => {
+  if (req.profile.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(400).json({ error: 'Service role key required' });
+    }
+    const { data: users, error: listErr } = await admin.auth.admin.listUsers();
+    if (listErr) throw listErr;
+
+    let confirmed = 0;
+    let skipped = 0;
+    for (const u of (users?.users || [])) {
+      if (u.email_confirmed_at) { skipped++; continue; }
+      try {
+        await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
+        confirmed++;
+      } catch {}
+    }
+    return res.json({ confirmed, skipped, total: (users?.users || []).length });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
