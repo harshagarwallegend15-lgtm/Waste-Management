@@ -77,10 +77,11 @@ router.post('/callback', async (req, res) => {
     let areaId = null;
     let societyId = null;
 
-    if (userRole === 'collector') {
-      // Auto-assign area (reuse logic from register)
-      const { data: areas } = await db.from('areas').select('id, name');
-      if (areas?.length) {
+    // Auto-assign area for all new Google users (residents + collectors)
+    const { data: areas } = await db.from('areas').select('id, name');
+    if (areas?.length) {
+      if (userRole === 'collector') {
+        // Collectors: prefer area with fewest pending requests
         let best = areas[0];
         let bestLoad = -1;
         for (const a of areas) {
@@ -103,6 +104,9 @@ router.post('/callback', async (req, res) => {
           }
         }
         areaId = best.id;
+      } else {
+        // Residents: assign first available area (they can change later via society picker)
+        areaId = areas[0].id;
       }
     }
 

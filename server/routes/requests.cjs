@@ -34,12 +34,32 @@ router.post(
       const url = await uploadPhoto(PHOTO_BUCKET, `requests/${req.profile.id}`, req.file.originalname || 'photo.jpg', req.file.buffer, req.file.mimetype);
       if (!url) return res.status(500).json({ error: 'Photo upload failed' });
 
+      // Derive area_id: profile → society lookup → fallback to first area
+      let areaId = req.profile.area_id;
+      if (!areaId && req.profile.society_id) {
+        const { data: society } = await db
+          .from('societies')
+          .select('area_id')
+          .eq('id', req.profile.society_id)
+          .single();
+        if (society?.area_id) areaId = society.area_id;
+      }
+      if (!areaId) {
+        const { data: firstArea } = await db
+          .from('areas')
+          .select('id')
+          .limit(1)
+          .single();
+        if (firstArea?.id) areaId = firstArea.id;
+      }
+      if (!areaId) return res.status(400).json({ error: 'No area configured. Please select a society first.' });
+
       const { data, error } = await db
         .from('collection_requests')
         .insert({
           resident_id: req.profile.id,
           society_id: req.profile.society_id,
-          area_id: req.profile.area_id,
+          area_id: areaId,
           waste_type: waste_type || 'mixed',
           status: 'pending',
           before_photo_url: url,
@@ -74,24 +94,54 @@ router.get('/area-residents', authRequired, roleGuard('collector'), async (req, 
   const areaId = req.profile.area_id;
   if (!areaId) return res.status(400).json({ error: 'You have not been assigned an area yet' });
 
-  const { data: residents } = await db
+  // Residents with area_id set directly
+  const { data: directResidents } = await db
     .from('profiles')
-    .select('id, name, address_text, gps_lat, gps_lng, phone, society_id, societies(name)')
+    .select('id, name, address_text, gps_lat, gps_lng, phone, society_id, society_id, societies(name, area_id)')
     .eq('role', 'resident')
     .eq('area_id', areaId);
 
-  if (!residents) return res.status(400).json({ error: 'Could not load residents' });
+  // Also find residents whose society is in this area but profile.area_id may be null
+  const { data: societyResidents } = await db
+    .from('profiles')
+    .select('id, name, address_text, gps_lat, gps_lng, phone, society_id, societies(name, area_id)')
+    .eq('role', 'resident')
+    .is('area_id', null)
+    .not('society_id', 'is', null);
 
-  // Attach the latest pending request for each resident
-  const { data: requests } = await db
+  // Filter societyResidents to only those whose society maps to this area
+  const filteredSociety = (societyResidents || []).filter(
+    (r) => r.societies?.area_id === areaId
+  );
+
+  // Merge and dedupe by id
+  const residentMap = {};
+  (directResidents || []).forEach((r) => { residentMap[r.id] = r; });
+  filteredSociety.forEach((r) => { if (!residentMap[r.id]) residentMap[r.id] = r; });
+  const residents = Object.values(residentMap);
+
+  if (!residents.length) return res.json({ area_id: areaId, residents: [] });
+
+  // Also fetch requests with null area_id that belong to these residents
+  const residentIds = residents.map((r) => r.id);
+  const { data: directRequests } = await db
     .from('collection_requests')
     .select('*')
     .eq('area_id', areaId)
     .in('status', ['pending', 'collected'])
     .order('created_at', { ascending: false });
 
+  // Also get requests with null area_id from these residents (backfill gap)
+  const { data: nullAreaRequests } = await db
+    .from('collection_requests')
+    .select('*')
+    .is('area_id', null)
+    .in('status', ['pending', 'collected'])
+    .in('resident_id', residentIds.length ? residentIds : ['__none__'])
+    .order('created_at', { ascending: false });
+
   const byResident = {};
-  (requests || []).forEach((r) => {
+  [...(directRequests || []), ...(nullAreaRequests || [])].forEach((r) => {
     if (!byResident[r.resident_id]) byResident[r.resident_id] = [];
     byResident[r.resident_id].push(r);
   });
@@ -127,7 +177,17 @@ router.post(
       if (request.status !== 'pending' && request.status !== 'collected') {
         return res.status(409).json({ error: `Request is already ${request.status}` });
       }
-      if (request.area_id !== req.profile.area_id) {
+      // Area check: direct match OR society-based match for null-area requests
+      let areaMatch = request.area_id === req.profile.area_id;
+      if (!areaMatch && !request.area_id && request.society_id) {
+        const { data: society } = await db
+          .from('societies')
+          .select('area_id')
+          .eq('id', request.society_id)
+          .single();
+        areaMatch = society?.area_id === req.profile.area_id;
+      }
+      if (!areaMatch) {
         return res.status(403).json({ error: 'This request is not in your assigned area' });
       }
 
