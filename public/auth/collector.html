@@ -11,16 +11,29 @@
   <header class="site-header" id="site-header" data-page="auth"></header>
   <main class="auth-wrap">
     <div class="auth-card">
-      <aside class="auth-hero">
-        <div class="auth-hero-icon">🚛</div>
+      <aside class="auth-hero role-collector">
+        <div class="ah-glow-orb"></div>
+        <div class="ah-icon-wrap">
+          <svg class="ah-svg" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="18" width="30" height="18" rx="3"/>
+            <path d="M36 24h10l5 6v6H36"/>
+            <circle cx="16" cy="40" r="4"/><circle cx="42" cy="40" r="4"/>
+            <path d="M6 18V10a3 3 0 013-3h5l5 11"/>
+            <path d="M22 18v-8M30 18v-6"/>
+          </svg>
+        </div>
         <h2 data-i18n="auth.collectorTitle">Collector</h2>
         <p data-i18n="auth.collectorDesc">Receive verified collection tasks near you, upload photo proof on the spot and grow your reputation with every completed pickup.</p>
         <ul class="auth-hero-points">
-          <li data-i18n="auth.collectorFeat1">📋 Claim scheduled pickups</li>
-          <li data-i18n="auth.collectorFeat2">📸 Instant photo verification</li>
-          <li data-i18n="auth.collectorFeat3">🏆 Boost your rating &amp; rank</li>
-          <li data-i18n="auth.collectorFeat4">🗺️ Smart route by area</li>
+          <li><span class="ah-point-dot cyan"></span><span data-i18n="auth.collectorFeat1">Claim scheduled pickups</span></li>
+          <li><span class="ah-point-dot cyan"></span><span data-i18n="auth.collectorFeat2">Instant photo verification</span></li>
+          <li><span class="ah-point-dot cyan"></span><span data-i18n="auth.collectorFeat3">Boost your rating & rank</span></li>
+          <li><span class="ah-point-dot cyan"></span><span data-i18n="auth.collectorFeat4">Smart route by area</span></li>
         </ul>
+        <div class="ah-status-bar">
+          <div class="ah-status-dot"></div>
+          <span>GPS tracking active during collection</span>
+        </div>
         <div class="auth-hero-glow"></div>
       </aside>
       <div class="auth-panel">

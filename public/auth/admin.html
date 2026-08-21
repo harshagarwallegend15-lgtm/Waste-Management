@@ -11,16 +11,30 @@
   <header class="site-header" id="site-header" data-page="auth"></header>
   <main class="auth-wrap">
     <div class="auth-card">
-      <aside class="auth-hero">
-        <div class="auth-hero-icon">🏛️</div>
+      <aside class="auth-hero role-admin">
+        <div class="ah-glow-orb"></div>
+        <div class="ah-icon-wrap">
+          <svg class="ah-svg" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 48V26L28 10l18 16v22H10z"/>
+            <path d="M20 48v-12h16v12"/>
+            <path d="M18 28h5M33 28h5"/>
+            <rect x="22" y="32" width="12" height="6" rx="1.5" opacity=".35"/>
+            <path d="M28 10V4M14 24l-4-3M42 24l4-3"/>
+            <circle cx="28" cy="22" r="3" opacity=".5"/>
+          </svg>
+        </div>
         <h2 data-i18n="auth.municipalityTitle">Municipality</h2>
         <p data-i18n="auth.municipalityDesc">Oversee the whole city's collection network — monitor live activity, verify work, review reports and keep every ward accountable.</p>
         <ul class="auth-hero-points">
-          <li data-i18n="auth.adminFeat1">📊 Live city dashboard</li>
-          <li data-i18n="auth.adminFeat2">✅ Verify collector work</li>
-          <li data-i18n="auth.adminFeat3">📥 Review citizen reports</li>
-          <li data-i18n="auth.adminFeat4">🧾 Manage areas &amp; societies</li>
+          <li><span class="ah-point-dot purple"></span><span data-i18n="auth.adminFeat1">Live city dashboard</span></li>
+          <li><span class="ah-point-dot purple"></span><span data-i18n="auth.adminFeat2">Verify collector work</span></li>
+          <li><span class="ah-point-dot purple"></span><span data-i18n="auth.adminFeat3">Review citizen reports</span></li>
+          <li><span class="ah-point-dot purple"></span><span data-i18n="auth.adminFeat4">Manage areas & societies</span></li>
         </ul>
+        <div class="ah-status-bar purple">
+          <div class="ah-status-dot purple"></div>
+          <span>Full administrative access</span>
+        </div>
         <div class="auth-hero-glow"></div>
       </aside>
       <div class="auth-panel">

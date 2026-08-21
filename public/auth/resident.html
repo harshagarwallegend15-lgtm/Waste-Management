@@ -11,16 +11,28 @@
   <header class="site-header" id="site-header" data-page="auth"></header>
   <main class="auth-wrap">
     <div class="auth-card">
-      <aside class="auth-hero">
-        <div class="auth-hero-icon">🏠</div>
+      <aside class="auth-hero role-resident">
+        <div class="ah-glow-orb"></div>
+        <div class="ah-icon-wrap">
+          <svg class="ah-svg" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 26L28 8l20 18"/>
+            <path d="M12 24v20a3 3 0 003 3h10v-12h6v12h10a3 3 0 003-3V24"/>
+            <rect x="22" y="16" width="12" height="10" rx="1.5" opacity=".4"/>
+            <circle cx="28" cy="36" r="1.5"/>
+          </svg>
+        </div>
         <h2 data-i18n="auth.residentTitle">Resident</h2>
         <p data-i18n="auth.residentDesc">Request doorstep collection with photo-verified proof, earn points for every pickup and keep your society sparkling clean.</p>
         <ul class="auth-hero-points">
-          <li data-i18n="auth.residentFeat1">📷 Photo-verified pickups</li>
-          <li data-i18n="auth.residentFeat2">⭐ Earn points &amp; rewards</li>
-          <li data-i18n="auth.residentFeat3">🚨 Report illegal dumping</li>
-          <li data-i18n="auth.residentFeat4">🏘️ Post society problems</li>
+          <li><span class="ah-point-dot green"></span><span data-i18n="auth.residentFeat1">Photo-verified pickups</span></li>
+          <li><span class="ah-point-dot green"></span><span data-i18n="auth.residentFeat2">Earn points & rewards</span></li>
+          <li><span class="ah-point-dot green"></span><span data-i18n="auth.residentFeat3">Report illegal dumping</span></li>
+          <li><span class="ah-point-dot green"></span><span data-i18n="auth.residentFeat4">Post society problems</span></li>
         </ul>
+        <div class="ah-status-bar green">
+          <div class="ah-status-dot green"></div>
+          <span>Track your waste, earn rewards</span>
+        </div>
         <div class="auth-hero-glow"></div>
       </aside>
       <div class="auth-panel">

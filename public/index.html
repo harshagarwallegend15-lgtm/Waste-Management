@@ -167,20 +167,53 @@
         <p data-i18n="landing.rolesDesc">Pick how you want to be part of the loop. You can sign in with a demo account in seconds.</p>
       </div>
       <div class="role-cards">
-        <div class="role-card" onclick="pick('resident')">
-          <div class="icon">🏠</div>
-          <h2 data-i18n="landing.residentTitle">Resident</h2>
+        <div class="role-card" onclick="pick('resident')" data-accent="green">
+          <div class="rc-glow"></div>
+          <div class="rc-icon-wrap green">
+            <svg class="rc-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22L24 6l18 16"/><path d="M10 20v18a2 2 0 002 2h8v-10h8v10h8a2 2 0 002-2V20"/><rect x="18" y="14" width="12" height="8" rx="1" opacity=".35"/></svg>
+          </div>
+          <div class="rc-badge green">4 features</div>
+          <h3 data-i18n="landing.residentTitle">Resident</h3>
           <p data-i18n="landing.residentDesc">Request doorstep collection with photo-verified proof, earn points, report dumping, and post society problems.</p>
+          <ul class="rc-features">
+            <li><span class="rc-dot green"></span>Photo-verified pickups</li>
+            <li><span class="rc-dot green"></span>Points & rewards</li>
+            <li><span class="rc-dot green"></span>Dumping reports</li>
+            <li><span class="rc-dot green"></span>Society problem board</li>
+          </ul>
+          <div class="rc-arrow"><span>Get started</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></div>
         </div>
-        <div class="role-card" onclick="pick('collector')">
-          <div class="icon">🚛</div>
-          <h2 data-i18n="landing.collectorTitle">Collector</h2>
+        <div class="role-card" onclick="pick('collector')" data-accent="cyan">
+          <div class="rc-glow"></div>
+          <div class="rc-icon-wrap cyan">
+            <svg class="rc-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="16" width="28" height="18" rx="2"/><path d="M32 22h8l4 6v6h-12"/><circle cx="14" cy="38" r="4"/><circle cx="38" cy="38" r="4"/><path d="M4 16V8a2 2 0 012-2h4l4 10"/></svg>
+          </div>
+          <div class="rc-badge cyan">GPS enabled</div>
+          <h3 data-i18n="landing.collectorTitle">Collector</h3>
           <p data-i18n="landing.collectorDesc">See residents in your area, visit their doorstep, upload a collection photo, and get verified for your work.</p>
+          <ul class="rc-features">
+            <li><span class="rc-dot cyan"></span>Area-based task list</li>
+            <li><span class="rc-dot cyan"></span>Instant photo verify</li>
+            <li><span class="rc-dot cyan"></span>GPS route tracking</li>
+            <li><span class="rc-dot cyan"></span>Rank & reputation</li>
+          </ul>
+          <div class="rc-arrow cyan"><span>Get started</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></div>
         </div>
-        <div class="role-card" onclick="pick('admin')">
-          <div class="icon">🏛️</div>
-          <h2 data-i18n="landing.adminTitle">Municipality Admin</h2>
+        <div class="role-card" onclick="pick('admin')" data-accent="purple">
+          <div class="rc-glow"></div>
+          <div class="rc-icon-wrap purple">
+            <svg class="rc-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 42V22l16-14 16 14v20H8z"/><path d="M18 42v-10h12v10"/><path d="M16 24h4M28 24h4"/><rect x="19" y="28" width="10" height="6" rx="1" opacity=".4"/><path d="M24 8V4"/><path d="M12 20l-4-3M36 20l4-3"/></svg>
+          </div>
+          <div class="rc-badge purple">Full access</div>
+          <h3 data-i18n="landing.adminTitle">Municipality Admin</h3>
           <p data-i18n="landing.adminDesc">Review verifications, resolve society problems, track every user, and watch live leaderboards and hotspots.</p>
+          <ul class="rc-features">
+            <li><span class="rc-dot purple"></span>Live city dashboard</li>
+            <li><span class="rc-dot purple"></span>Verify collector work</li>
+            <li><span class="rc-dot purple"></span>Review citizen reports</li>
+            <li><span class="rc-dot purple"></span>Manage areas & societies</li>
+          </ul>
+          <div class="rc-arrow purple"><span>Get started</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></div>
         </div>
       </div>
     </section>
