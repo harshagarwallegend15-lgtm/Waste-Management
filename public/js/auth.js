@@ -42,7 +42,11 @@ async function doLogin(e) {
       return;
     }
     WW.setSession(data.session.access_token, data.profile);
-    location.href = `/${ROLE}.html`;
+    if (ROLE === 'resident' && (!data.profile.society_id || data.profile.gps_lat == null)) {
+      location.href = '/auth/location.html';
+    } else {
+      location.href = `/${ROLE}.html`;
+    }
   } catch (err) {
     showError(err.message);
   }

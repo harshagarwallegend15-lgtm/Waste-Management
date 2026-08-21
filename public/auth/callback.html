@@ -108,8 +108,12 @@
         localStorage.setItem('ww_token', data.session.access_token);
         localStorage.setItem('ww_profile', JSON.stringify(data.profile));
 
-        // Redirect to appropriate dashboard
-        window.location.href = '/' + data.profile.role + '.html';
+        // Residents without a society must set their location first
+        if (data.profile.role === 'resident' && (!data.profile.society_id || data.profile.gps_lat == null)) {
+          window.location.href = '/auth/location.html';
+        } else {
+          window.location.href = '/' + data.profile.role + '.html';
+        }
 
       } catch (e) {
         showError('Something went wrong. Please try again. ');

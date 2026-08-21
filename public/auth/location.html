@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Set your location — WasteWise</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    .loc-wrap {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 80vh; text-align: center; padding: 2rem;
+    }
+    .loc-card {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px; padding: 2.5rem 2rem; max-width: 440px; width: 100%;
+      backdrop-filter: blur(20px);
+    }
+    .loc-card h2 { margin: 0 0 0.5rem; font-size: 1.3rem; }
+    .loc-card .subtitle { color: var(--c-muted); font-size: 0.85rem; margin: 0 0 1.5rem; }
+    .loc-spinner {
+      width: 48px; height: 48px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--c-accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 1.2rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loc-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .loc-status { color: var(--c-muted); font-size: 0.85rem; margin-bottom: 1rem; min-height: 1.2em; }
+    .loc-error { color: var(--c-red); font-size: 0.85rem; margin-bottom: 1rem; }
+    .loc-success { color: var(--c-green); font-size: 0.85rem; margin-bottom: 1rem; }
+    .society-list {
+      text-align: left; max-height: 240px; overflow-y: auto;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+      margin-bottom: 1.2rem; background: rgba(0,0,0,0.15);
+    }
+    .society-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.8rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.04);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .society-item:last-child { border-bottom: none; }
+    .society-item:hover { background: rgba(255,255,255,0.04); }
+    .society-item.selected { background: rgba(44,160,28,0.12); border-color: var(--c-accent); }
+    .society-item input[type="radio"] { accent-color: var(--c-accent); flex-shrink: 0; }
+    .society-name { font-weight: 600; font-size: 0.9rem; }
+    .society-meta { font-size: 0.75rem; color: var(--c-muted); margin-top: 2px; }
+    .loc-btn {
+      display: block; width: 100%; padding: 0.8rem; border: none; border-radius: 10px;
+      background: var(--c-accent); color: #000; font-weight: 700; font-size: 0.95rem;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .loc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .loc-btn:hover:not(:disabled) { opacity: 0.85; }
+    .loc-skip {
+      display: inline-block; margin-top: 0.8rem; color: var(--c-muted);
+      font-size: 0.8rem; text-decoration: underline; cursor: pointer;
+      background: none; border: none; padding: 0;
+    }
+    .loc-skip:hover { color: var(--c-text); }
+  </style>
+</head>
+<body>
+  <main class="loc-wrap">
+    <div class="loc-card">
+      <div id="phase-gps">
+        <div class="loc-icon">📍</div>
+        <h2>Enable your location</h2>
+        <p class="subtitle">We need your location to find waste collectors near you.</p>
+        <div class="loc-spinner" id="gps-spinner"></div>
+        <div class="loc-status" id="gps-status">Requesting location access…</div>
+        <div class="loc-error hidden" id="gps-error"></div>
+        <button class="loc-btn" id="retry-gps" style="display:none">Try again</button>
+      </div>
+
+      <div id="phase-society" class="hidden">
+        <div class="loc-icon">🏘️</div>
+        <h2>Select your society</h2>
+        <p class="subtitle">Choose the society nearest to you.</p>
+        <div class="loc-status" id="soc-status">Loading nearby societies…</div>
+        <div class="loc-error hidden" id="soc-error"></div>
+        <div class="society-list hidden" id="soc-list"></div>
+        <button class="loc-btn" id="confirm-soc" disabled>Confirm &amp; continue</button>
+        <button class="loc-skip" id="skip-soc">Skip for now</button>
+      </div>
+
+      <div id="phase-done" class="hidden">
+        <div class="loc-icon">✅</div>
+        <h2>You're all set!</h2>
+        <p class="subtitle">Redirecting you to your dashboard…</p>
+        <div class="loc-spinner"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem('ww_token');
+      const profile = JSON.parse(localStorage.getItem('ww_profile') || '{}');
+
+      if (!token || !profile.id) {
+        window.location.href = '/auth/resident.html';
+        return;
+      }
+
+      // If already has society, skip straight to dashboard
+      if (profile.society_id && profile.gps_lat != null) {
+        window.location.href = '/resident.html';
+        return;
+      }
+
+      let userLat = null;
+      let userLng = null;
+      let societies = [];
+      let selectedSocietyId = null;
+
+      const $gpsSpinner = document.getElementById('gps-spinner');
+      const $gpsStatus = document.getElementById('gps-status');
+      const $gpsError = document.getElementById('gps-error');
+      const $retryGps = document.getElementById('retry-gps');
+      const $phaseGps = document.getElementById('phase-gps');
+      const $phaseSoc = document.getElementById('phase-society');
+      const $phaseDone = document.getElementById('phase-done');
+      const $socStatus = document.getElementById('soc-status');
+      const $socError = document.getElementById('soc-error');
+      const $socList = document.getElementById('soc-list');
+      const $confirmSoc = document.getElementById('confirm-soc');
+      const $skipSoc = document.getElementById('skip-soc');
+
+      function showPhase(phase) {
+        $phaseGps.classList.toggle('hidden', phase !== 'gps');
+        $phaseSoc.classList.toggle('hidden', phase !== 'society');
+        $phaseDone.classList.toggle('hidden', phase !== 'done');
+      }
+
+      function requestGps() {
+        $gpsSpinner.style.display = '';
+        $gpsStatus.textContent = 'Requesting location access…';
+        $gpsError.classList.add('hidden');
+        $retryGps.style.display = 'none';
+
+        if (!navigator.geolocation) {
+          $gpsSpinner.style.display = 'none';
+          $gpsStatus.textContent = '';
+          $gpsError.textContent = 'Geolocation is not supported by your browser.';
+          $retryGps.style.display = '';
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            userLat = pos.coords.latitude;
+            userLng = pos.coords.longitude;
+            $gpsSpinner.style.display = 'none';
+            $gpsStatus.textContent = 'Location acquired!';
+            $gpsStatus.classList.add('loc-success');
+            await loadSocieties();
+          },
+          (err) => {
+            $gpsSpinner.style.display = 'none';
+            $gpsStatus.textContent = '';
+            $gpsError.textContent = err.code === 1
+              ? 'Location permission denied. Please enable location in your browser settings.'
+              : err.code === 2
+                ? 'Unable to determine your location. Please try again.'
+                : 'Location request timed out. Please try again.';
+            $retryGps.style.display = '';
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      }
+
+      async function loadSocieties() {
+        try {
+          const res = await fetch('/api/societies/options?lat=' + userLat + '&lng=' + userLng);
+          const data = await res.json();
+          societies = data.societies || [];
+          showPhase('society');
+
+          if (!societies.length) {
+            $socStatus.textContent = '';
+            $socError.textContent = data.region
+              ? 'No societies found nearby. You can skip for now and set your society later.'
+              : 'No societies found. You can skip for now and set your society later.';
+            $socList.classList.add('hidden');
+            $skipSoc.textContent = 'Continue to dashboard';
+            return;
+          }
+
+          $socStatus.textContent = societies.length + ' society' + (societies.length > 1 ? 's' : '') + ' found near you:';
+          $socError.classList.add('hidden');
+          $socList.classList.remove('hidden');
+          $socList.innerHTML = '';
+
+          societies.forEach((s) => {
+            const item = document.createElement('label');
+            item.className = 'society-item';
+            item.innerHTML =
+              '<input type="radio" name="society" value="' + s.id + '">' +
+              '<div><div class="society-name">' + escHtml(s.name) + '</div>' +
+              '<div class="society-meta">' +
+              (s.area ? escHtml(s.area) : '') +
+              (s.distance_km != null ? ' · ' + s.distance_km.toFixed(1) + ' km away' : '') +
+              '</div></div>';
+            item.addEventListener('click', () => {
+              document.querySelectorAll('.society-item').forEach((el) => el.classList.remove('selected'));
+              item.classList.add('selected');
+              item.querySelector('input').checked = true;
+              selectedSocietyId = s.id;
+              $confirmSoc.disabled = false;
+            });
+            $socList.appendChild(item);
+          });
+        } catch (e) {
+          $socStatus.textContent = '';
+          $socError.textContent = 'Failed to load societies. You can skip for now.';
+          $skipSoc.textContent = 'Continue to dashboard';
+        }
+      }
+
+      $confirmSoc.addEventListener('click', async () => {
+        if (!selectedSocietyId) return;
+        $confirmSoc.disabled = true;
+        $confirmSoc.textContent = 'Saving…';
+        try {
+          const res = await fetch('/api/societies/me', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify({ society_id: selectedSocietyId, gps_lat: userLat, gps_lng: userLng }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed');
+          localStorage.setItem('ww_profile', JSON.stringify(data.profile));
+          showPhase('done');
+          setTimeout(() => { window.location.href = '/resident.html'; }, 1200);
+        } catch (e) {
+          $confirmSoc.disabled = false;
+          $confirmSoc.textContent = 'Confirm & continue';
+          $socError.textContent = 'Error: ' + e.message;
+        }
+      });
+
+      $skipSoc.addEventListener('click', () => {
+        window.location.href = '/resident.html';
+      });
+
+      $retryGps.addEventListener('click', requestGps);
+
+      function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      requestGps();
+    })();
+  </script>
+</body>
+</html>
