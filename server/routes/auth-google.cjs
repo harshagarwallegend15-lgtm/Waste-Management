@@ -7,6 +7,14 @@ const { admin, db } = require('../lib/supabase.cjs');
 // from a request query/body. The optional GOOGLE_ADMIN_EMAILS allowlist is the
 // only way an admin account can be provisioned through this flow.
 const PUBLIC_GOOGLE_ROLES = ['resident', 'collector'];
+
+// Public origin of the deployed app. On platforms that terminate TLS or serve
+// several hostnames (Vercel previews, tunnels, reverse proxies), the request
+// host may not be the URL users actually see. Setting APP_URL pins the OAuth
+// callback to the canonical origin so Supabase never falls back to its
+// localhost Site URL. Falls back to the incoming request origin when unset.
+const APP_URL = (process.env.APP_URL || process.env.SITE_URL || '').replace(/\/+$/, '');
+
 const ADMIN_EMAILS = new Set(
   (process.env.GOOGLE_ADMIN_EMAILS || '')
     .split(',')
@@ -38,7 +46,8 @@ router.get('/', async (req, res) => {
     const supabaseUrl = process.env.SUPABASE_URL;
     if (!supabaseUrl) return res.status(500).json({ error: 'SUPABASE_URL is not configured' });
 
-    const callbackUrl = `${req.protocol}://${req.get('host')}/auth/callback.html?role=${encodeURIComponent(role)}`;
+    const baseUrl = APP_URL || `${req.protocol}://${req.get('host')}`;
+    const callbackUrl = `${baseUrl}/auth/callback.html?role=${encodeURIComponent(role)}`;
 
     // Build Supabase OAuth URL
     const authUrl = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(callbackUrl)}`;

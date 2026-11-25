@@ -210,8 +210,14 @@ The repo ships a Vercel-ready serverless setup (`vercel.json` + `api/index.js`),
 1. Import the repo on Vercel. It will deploy automatically — `vercel.json` rewrites every
    request to the Node function, which serves the frontend and `/api`.
 2. Add the env vars in Project → Settings → Environment Variables (same set as below);
-   `SUPABASE_SERVICE_ROLE_KEY` is required in production.
-3. Apply `supabase/schema.sql` to your Supabase project and create the public `waste-photos`
+   `SUPABASE_SERVICE_ROLE_KEY` is required in production. Set `APP_URL` to the exact
+   deployment origin (e.g. `https://your-app.vercel.app`) so Google OAuth callbacks use
+   it instead of a proxy/localhost host.
+3. In Supabase -> Authentication -> URL Configuration, set **Site URL** to the same
+   `APP_URL` and add `https://<your-app>.vercel.app/auth/callback.html` (plus
+   `/auth/confirm.html`) to **Redirect URLs**. Otherwise Supabase falls back to the
+   localhost Site URL and mobile users see "localhost refused to connect".
+4. Apply `supabase/schema.sql` to your Supabase project and create the public `waste-photos`
    storage bucket manually (8 MB file limit) — the boot-time auto-create is not reliable in
    a serverless deployment. Do **not** run `npm run seed` against production: it is a
    destructive local-only helper that wipes existing data.
@@ -251,6 +257,7 @@ if you hit it, reduce `multer`'s `fileSize` limit in `server/routes/requests.cjs
 | `SUPABASE_URL` | ✅ | — | Supabase project URL |
 | `SUPABASE_ANON_KEY` | ✅ | — | Public browser key (config + Realtime) |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ (required in prod) | anon fallback (dev only) | Server-only key for all DB writes; never expose it to the browser |
+| `APP_URL` (or `SITE_URL`) | recommended on Vercel | incoming request origin | Canonical public origin for the Google OAuth callback; set to your deployed URL to prevent localhost fallbacks |
 | `GROQ_API_KEY` | optional | — | AI vision for low-confidence photo matches + garbage-photo gate |
 | `GROQ_VISION_MODEL` | optional | `qwen/qwen3.6-27b` | Vision model for photo matching + garbage gate |
 | `AI_TIMEOUT_MS` | optional | `25000` | Vision request timeout |
