@@ -59,7 +59,19 @@
       var token = allParams.get('token') || allParams.get('access_token');
       var tokenHash = allParams.get('token_hash');
       var type = allParams.get('type') || 'email';
+      var email = allParams.get('email');
+      var role = allParams.get('role');
       var error = allParams.get('error');
+      // Fall back to the role saved at signup if the email link has no role.
+      try {
+        if (!role) {
+          var stored = JSON.parse(localStorage.getItem('ww_profile') || '{}');
+          role = stored.role;
+        }
+      } catch (e) {}
+      var loginUrl = role === 'collector' || role === 'admin'
+        ? '/auth/' + role + '.html'
+        : '/auth/resident.html';
 
       if (error) {
         spinner.style.display = 'none';
@@ -81,7 +93,7 @@
         var res = await fetch('/api/auth/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: token, token_hash: tokenHash, type: type }),
+          body: JSON.stringify({ token: token, token_hash: tokenHash, type: type, email: email }),
         });
 
         var data = await res.json();
@@ -98,7 +110,7 @@
         spinner.style.display = 'none';
         title.textContent = 'Email verified!';
         result.innerHTML = '<p class="confirm-success">Your account is ready. You can now log in.</p>' +
-          '<a class="confirm-btn" href="/auth/resident.html">Go to Login</a>';
+          '<a class="confirm-btn" href="' + loginUrl + '">Go to Login</a>';
 
       } catch (e) {
         spinner.style.display = 'none';

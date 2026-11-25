@@ -3,6 +3,9 @@ window.WWCamera = (() => {
   let stream = null;
 
   async function start(videoEl) {
+    // Release the previous stream first so repeated starts don't leave the camera on.
+    stop();
+    if (videoEl) videoEl.srcObject = null;
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false });
     videoEl.srcObject = stream;
     await videoEl.play();

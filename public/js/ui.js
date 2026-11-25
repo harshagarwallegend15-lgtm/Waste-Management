@@ -4,9 +4,13 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // --- Count-up animation for elements with class .num ---
+  const active = new WeakSet();
+  const lastValue = new WeakMap();
+
   function animateNum(el) {
     const target = parseFloat(String(el.textContent).replace(/[^0-9.-]/g, ''));
     if (isNaN(target) || reduce) return;
+    active.add(el);
     const isInt = Number.isInteger(target);
     const dur = 650;
     const start = performance.now();
@@ -14,24 +18,35 @@
       const t = Math.min((now - start) / dur, 1);
       const eased = 1 - Math.pow(1 - t, 3);
       el.textContent = isInt ? Math.round(target * eased) : (target * eased).toFixed(1);
-      if (t < 1) requestAnimationFrame(frame);
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        active.delete(el);
+      }
     })(performance.now());
   }
 
-  const animated = new WeakSet();
+  function maybeAnimate(el) {
+    if (!el || !el.classList || !el.classList.contains('num') || active.has(el)) return;
+    const text = String(el.textContent == null ? '' : el.textContent);
+    if (text === lastValue.get(el)) return;
+    if (isNaN(parseFloat(text.replace(/[^0-9.-]/g, '')))) return;
+    lastValue.set(el, text);
+    animateNum(el);
+  }
 
+  // Observe the whole document so dynamically injected .num elements animate too.
   const watcher = new MutationObserver((muts) => {
     for (const m of muts) {
       for (const n of m.addedNodes) {
         const el = n.nodeType === 3 ? n.parentElement : n;
-        if (el && el.classList && el.classList.contains('num') && !animated.has(el)) {
-          animated.add(el);
-          animateNum(el);
-        }
+        if (!el || el.nodeType !== 1) continue;
+        if (el.classList && el.classList.contains('num')) maybeAnimate(el);
+        if (el.querySelectorAll) el.querySelectorAll('.num').forEach(maybeAnimate);
       }
     }
   });
-  document.querySelectorAll('.num').forEach((el) => watcher.observe(el, { childList: true }));
+  if (document.body) watcher.observe(document.body, { childList: true, subtree: true });
 
   // --- Count-up for static numbers (author sets data-count) ---
   document.querySelectorAll('.num[data-count]').forEach((el) => {

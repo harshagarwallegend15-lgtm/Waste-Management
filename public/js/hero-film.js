@@ -91,27 +91,43 @@
   }
 
   function preloadImages() {
-    var loaded = 0;
+    var started = false;
+    function start() {
+      if (started) return;
+      started = true;
+      animating = true;
+      canvas.classList.add('active');
+      if (reduce) {
+        drawKenBurns(images[0], 0, 0.5, 1);
+        drawOverlays(performance.now());
+      } else {
+        phaseStart = performance.now();
+        rafId = requestAnimationFrame(render);
+      }
+    }
+
     images = FRAME_URLS.map(function (url) {
       var img = new Image();
       img.crossOrigin = 'anonymous';
-      img.onload = img.onerror = function () {
-        loaded++;
-        if (loaded === FRAME_URLS.length && !animating) {
-          animating = true;
-          canvas.classList.add('active');
-          if (reduce) {
-            drawKenBurns(images[0], 0, 0.5, 1);
-            drawOverlays(performance.now());
-          } else {
-            phaseStart = performance.now();
-            rafId = requestAnimationFrame(render);
-          }
-        }
-      };
+      // Start with the first frame that arrives; the rest can join the
+      // rotation as they load. A timeout covers blocked/slow image hosts.
+      img.onload = function () { start(); };
       img.src = url;
       return img;
     });
+    setTimeout(start, 3000);
+  }
+
+  function isReady(img) {
+    return !!img && img.complete && img.naturalWidth > 0;
+  }
+
+  function nextReadyIndex(from) {
+    for (var i = 1; i <= images.length; i++) {
+      var idx = (from + i) % images.length;
+      if (isReady(images[idx])) return idx;
+    }
+    return from;
   }
 
   function drawKenBurns(img, kbIdx, t, alpha) {
@@ -188,17 +204,35 @@
     ctx.clearRect(0, 0, w, h);
     var elapsed = now - phaseStart;
 
+    if (!isReady(images[currentIdx])) {
+      var readyIdx = nextReadyIndex(currentIdx);
+      if (readyIdx !== currentIdx) {
+        currentIdx = readyIdx;
+        phase = 'hold';
+        phaseStart = now;
+      } else {
+        drawOverlays(now);
+        return;
+      }
+    }
+
     if (phase === 'hold') {
       drawKenBurns(images[currentIdx], currentIdx, elapsed / (HOLD_MS + CROSSFADE_MS), 1);
       if (elapsed >= HOLD_MS) { phase = 'fade'; phaseStart = now; }
     } else {
       var fadeT = Math.min(elapsed / CROSSFADE_MS, 1);
       var eased = easeInOutCubic(fadeT);
-      var nextIdx = (currentIdx + 1) % images.length;
-      drawKenBurns(images[currentIdx], currentIdx, 1, 1 - eased);
-      drawKenBurns(images[nextIdx], nextIdx, (elapsed / (HOLD_MS + CROSSFADE_MS)) * 0.12, eased);
-      if (fadeT >= 1) {
-        currentIdx = nextIdx;
+      var nextIdx = nextReadyIndex(currentIdx);
+      if (nextIdx !== currentIdx) {
+        drawKenBurns(images[currentIdx], currentIdx, 1, 1 - eased);
+        drawKenBurns(images[nextIdx], nextIdx, (elapsed / (HOLD_MS + CROSSFADE_MS)) * 0.12, eased);
+        if (fadeT >= 1) {
+          currentIdx = nextIdx;
+          phase = 'hold';
+          phaseStart = now;
+        }
+      } else {
+        drawKenBurns(images[currentIdx], currentIdx, 1, 1);
         phase = 'hold';
         phaseStart = now;
       }

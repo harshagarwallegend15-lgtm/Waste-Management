@@ -12,6 +12,39 @@ const RULES = {
  * Returns the new balance, or null on failure.
  */
 async function addPoints(userId, delta, reason, sourceType, sourceId) {
+  // Atomic path: the Postgres function writes the ledger row and updates the
+  // profile balance in one transaction, so points can never be granted without
+  // a matching immutable ledger entry.
+  try {
+    const { data: balance, error: rpcErr } = await db.rpc('award_points', {
+      p_user: userId,
+      p_delta: delta,
+      p_reason: reason,
+      p_source_type: sourceType,
+      p_source_id: sourceId,
+    });
+    if (rpcErr) throw rpcErr;
+    const newPoints = Number(balance);
+    if (!Number.isFinite(newPoints)) return null;
+    return { txn: null, newPoints };
+  } catch (e) {
+    const msg = e.message || String(e);
+    if (!/award_points|function/i.test(msg)) {
+      console.error('Award points RPC failed:', msg);
+      return null;
+    }
+    console.warn('award_points RPC unavailable, falling back to read-modify-write:', msg);
+  }
+
+  // Fallback for databases without the RPC: insert the ledger row FIRST, then
+  // update the balance only if that insert succeeded.
+  const { data: txn, error: tErr } = await db
+    .from('points_transactions')
+    .insert({ user_id: userId, delta, reason, source_type: sourceType, source_id: sourceId })
+    .select()
+    .single();
+  if (tErr) return null;
+
   const { data: profile, error: pErr } = await db
     .from('profiles')
     .select('points')
@@ -22,13 +55,6 @@ async function addPoints(userId, delta, reason, sourceType, sourceId) {
   const newPoints = (profile.points || 0) + delta;
   const { error: uErr } = await db.from('profiles').update({ points: newPoints }).eq('id', userId);
   if (uErr) return null;
-
-  const { data: txn, error: tErr } = await db
-    .from('points_transactions')
-    .insert({ user_id: userId, delta, reason, source_type: sourceType, source_id: sourceId })
-    .select()
-    .single();
-  if (tErr) return null;
 
   return { txn, newPoints };
 }

@@ -1,8 +1,24 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
+const missingEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((k) => !process.env[k]);
+if (missingEnv.length) {
+  console.error('Missing required environment variable(s): ' + missingEnv.join(', '));
+  console.error('Copy .env.example to .env and set your Supabase URL + service-role key, then start the server `npm run dev` before running this E2E test.');
+  process.exit(1);
+}
+
 const { createClient } = require('@supabase/supabase-js');
 const sharp = require('sharp');
 
 const SUPA = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+const failures = [];
+function check(label, ok) {
+  console.log('  ' + (ok ? '✅' : '❌') + ' ' + label);
+  if (!ok) failures.push(label);
+}
+function score(cv) {
+  return typeof cv === 'number' ? (cv * 100).toFixed(0) + '%' : 'n/a';
+}
 
 async function login(email, password) {
   const { data, error } = await SUPA.auth.signInWithPassword({ email, password });
@@ -45,7 +61,7 @@ async function main() {
   const [admin, res, col] = await Promise.all([
     login('admin@wastewise.app', 'Admin@123'),
     login('resident@wastewise.app', 'Resident@123'),
-    login('collector@wastewise.app', 'Collector@123'),
+    login('collector1@wastewise.app', 'Collector@123'),
   ]);
   console.log('1. Logged in as admin, resident, collector ✅');
 
@@ -74,14 +90,15 @@ async function main() {
   completeForm.append('gps_lat', '28.6142');
   completeForm.append('gps_lng', '77.2094');
   const { verification, points } = await api(col.token, 'POST', `/api/requests/${request.id}/complete`, completeForm);
-  console.log('5. Verification:', verification.verdict, '| cv score:', (verification.cv_score * 100).toFixed(0) + '%', '| method:', verification.cv_method);
-  if (verification.verdict !== 'verified') throw new Error('Expected verified, got ' + verification.verdict);
-  console.log('   Points awarded:', points.length, 'transactions ✅');
+  console.log('5. Verification:', verification.verdict, '| cv score:', score(verification.cv_score), '| method:', verification.cv_method);
+  check('verification verdict is verified', verification.verdict === 'verified');
+  check('points transactions were recorded', Array.isArray(points) && points.length > 0);
 
   // Resident + collector points should be > 0
   const resPoints = await api(res.token, 'GET', '/api/points/me');
   const colPoints = await api(col.token, 'GET', '/api/points/me');
-  console.log('6. Resident points:', resPoints.points, '| Collector points:', colPoints.points, '✅');
+  console.log('6. Resident points:', resPoints.points, '| Collector points:', colPoints.points);
+  check('resident and collector have points', resPoints.points > 0 && colPoints.points > 0);
 
   // Resident creates a dumping report (slightly random location to avoid
   // tripping the duplicate detector on repeat test runs)
@@ -120,8 +137,12 @@ async function main() {
   console.log('13. Leaderboards — residents:', lb.residents.length, '| collectors:', lb.collectors.length, '| societies:', lb.societies.length, '✅');
 
   const edu = await api(res.token, 'GET', '/api/education/for-me');
-  console.log('14. Education for resident — lesson:', edu.lesson.trigger_type, '✅');
+  console.log('14. Education for resident — lesson:', edu.lesson ? edu.lesson.trigger_type : '(none)');
 
+  if (failures.length) {
+    console.error('\nE2E FAILED (' + failures.length + ' check(s)):\n- ' + failures.join('\n- '));
+    process.exit(1);
+  }
   console.log('\n=== E2E PASSED ===');
 }
 

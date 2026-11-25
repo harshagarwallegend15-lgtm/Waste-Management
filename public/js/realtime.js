@@ -2,6 +2,7 @@
 window.WWRealtime = (() => {
   const subscriptions = [];
   let client = null;
+  let realtimeAvailable = false;
 
   let configPromise = null;
 
@@ -13,12 +14,30 @@ window.WWRealtime = (() => {
   }
 
   async function connect() {
-    if (client) return client;
-    if (typeof supabase === 'undefined') return null;
+    if (client) { realtimeAvailable = true; return client; }
+    if (typeof supabase === 'undefined') { realtimeAvailable = false; return null; }
     const cfg = await getConfig();
-    if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) return null;
-    client = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    if (!cfg || !cfg.supabaseUrl || !cfg.supabaseAnonKey) { realtimeAvailable = false; return null; }
+    try {
+      client = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+      realtimeAvailable = true;
+    } catch (err) {
+      console.warn('Realtime client could not be created:', err);
+      realtimeAvailable = false;
+      return null;
+    }
     return client;
+  }
+
+  // True once a usable Supabase client has been created. Pages use this to
+  // decide whether they need a polling fallback.
+  function isAvailable() { return realtimeAvailable && !!client; }
+
+  // Generic fallback used by dashboards when realtime subscriptions fail.
+  function startPoll(fn, intervalMs) {
+    return setInterval(function () {
+      try { fn(); } catch (err) { console.warn('WWRealtime poll failed:', err); }
+    }, intervalMs || 15000);
   }
 
   // config: { event, schema, table, filter }. callback(newRow, payload).
@@ -46,5 +65,5 @@ window.WWRealtime = (() => {
     subscriptions.length = 0;
   }
 
-  return { subscribe, remove, disconnectAll, connect };
+  return { subscribe, remove, disconnectAll, connect, isAvailable, startPoll };
 })();

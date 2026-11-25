@@ -11,6 +11,15 @@ router.use(authRequired, roleGuard('admin'));
 
 // ---- Dashboard aggregates: KPIs, hotspots, trends, area breakdown, collector activity ----
 router.get('/dashboard', async (req, res) => {
+  try {
+    await buildDashboard(res);
+  } catch (e) {
+    console.error('[admin] dashboard error:', e);
+    return res.status(500).json({ error: 'Failed to build dashboard' });
+  }
+});
+
+async function buildDashboard(res) {
   const { data: areas } = await db.from('areas').select('id, name');
   const { data: societies } = await db.from('societies').select('id, name, area_id');
 
@@ -84,7 +93,7 @@ router.get('/dashboard', async (req, res) => {
     collectorActivity,
     feed,
   });
-});
+}
 
 function buildHotspots(reports, areas) {
   const areaMap = {};
@@ -155,7 +164,7 @@ function buildAreaBreakdown(requests, reports, areas, societies) {
     reportCounts[r.area_id] = (reportCounts[r.area_id] || 0) + 1;
   });
   return Object.values(areaMap)
-    .filter((a) => a.requests > 0 || reportCounts[a.name])
+    .filter((a) => a.requests > 0 || reportCounts[a.id])
     .map((a) => ({
       name: a.name,
       requests: a.requests,
@@ -163,7 +172,7 @@ function buildAreaBreakdown(requests, reports, areas, societies) {
       flagged: a.flagged,
       pending: a.pending,
       verifyRate: a.requests > 0 ? Math.round((a.verified / a.requests) * 100) : 0,
-      reports: reportCounts[a.name] || 0,
+      reports: reportCounts[a.id] || 0,
       societies: [...a.societies],
     }))
     .sort((a, b) => b.requests - a.requests);
@@ -207,7 +216,7 @@ async function buildActivityFeed() {
     db.from('collection_requests').select('id, status, created_at, resident_id, collector_id').order('created_at', { ascending: false }).limit(15),
     db.from('dumping_reports').select('id, status, created_at, reporter_id').order('created_at', { ascending: false }).limit(10),
     db.from('society_problems').select('id, title, status, created_at, resident_id').order('created_at', { ascending: false }).limit(10),
-    db.from('points_transactions').select('id, user_id, amount, reason, created_at').order('created_at', { ascending: false }).limit(10),
+    db.from('points_transactions').select('id, user_id, delta, reason, created_at').order('created_at', { ascending: false }).limit(10),
   ]);
   const events = [];
   (reqs.data || []).forEach((r) => {
@@ -220,7 +229,7 @@ async function buildActivityFeed() {
     events.push({ type: 'problem', status: p.status, timestamp: p.created_at, detail: `Problem: ${p.title} (${p.status})` });
   });
   (txns.data || []).forEach((t) => {
-    events.push({ type: 'points', timestamp: t.created_at, detail: `+${t.amount} pts — ${t.reason}` });
+    events.push({ type: 'points', timestamp: t.created_at, detail: `+${t.delta} pts — ${t.reason}` });
   });
   events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   return events.slice(0, 30);
@@ -264,8 +273,8 @@ router.post('/collections/:id/override', async (req, res) => {
     let points = null;
     if (verdict === 'verified' && !alreadyVerified) {
       points = await awardCollectionPoints(request);
-      recomputeSocietyScore(request.society_id).catch(() => {});
-      checkChallengeCompletions(request.society_id).catch(() => {});
+      await recomputeSocietyScore(request.society_id).catch((e) => console.error('[admin] score recompute failed:', e.message));
+      await checkChallengeCompletions(request.society_id).catch((e) => console.error('[admin] challenge check failed:', e.message));
     }
     return res.json({ request_id: request.id, status: verdict, points });
   } catch (e) {

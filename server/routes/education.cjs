@@ -32,7 +32,8 @@ router.get('/for-me', authRequired, roleGuard('resident'), async (req, res) => {
     .from('collection_requests')
     .select('waste_type, status')
     .eq('resident_id', req.profile.id)
-    .eq('status', 'verified');
+    .eq('status', 'verified')
+    .order('verified_at', { ascending: false });
 
   const mixedCount = (requests || []).filter((r) => r.waste_type === 'mixed').length;
   const verifiedCount = (requests || []).length;

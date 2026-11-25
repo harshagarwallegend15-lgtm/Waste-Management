@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { admin, db } = require('../lib/supabase.cjs');
+const { admin, anon, db } = require('../lib/supabase.cjs');
 const { authRequired } = require('../middleware/auth.cjs');
 
 const VALID_ROLES = ['resident', 'collector'];
@@ -66,18 +66,19 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    const { data: authData, error: authError } = await (async () => {
-      // Service role: create user but require email confirmation.
-      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        return admin.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: false,
-          user_metadata: { role, name },
-        });
-      }
-      return admin.auth.signUp({ email, password, options: { data: { role, name } } });
-    })();
+    // Self-registration must use signUp() so Supabase sends the normal
+    // confirmation email. admin.createUser({ email_confirm: false }) creates
+    // an unconfirmed user without emailing anyone, which leaves the account
+    // permanently unusable (the UI tells users to check their inbox).
+    const signUpOptions = { data: { role, name } };
+    if (process.env.AUTH_REDIRECT_URL) {
+      signUpOptions.emailRedirectTo = process.env.AUTH_REDIRECT_URL;
+    }
+    const { data: authData, error: authError } = await anon.auth.signUp({
+      email,
+      password,
+      options: signUpOptions,
+    });
     if (authError) return res.status(400).json({ error: authError.message });
 
     const userId = authData.user.id;
@@ -114,7 +115,7 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
-    const { data, error } = await admin.auth.signInWithPassword({ email, password });
+    const { data, error } = await anon.auth.signInWithPassword({ email, password });
     if (error) {
       const msg = error.message.includes('Email not confirmed')
         ? 'Please verify your email first. Check your inbox for the confirmation link.'
@@ -138,27 +139,28 @@ router.get('/me', authRequired, (req, res) => {
 /**
  * POST /api/auth/confirm
  * Verifies email confirmation token from Supabase.
- * Body: { token, token_hash, type } — from the confirmation email link.
+ * Body: { token, token_hash, type, email } — from the confirmation email link.
  */
 router.post('/confirm', async (req, res) => {
   try {
-    const { token, token_hash, type } = req.body;
+    const { token, token_hash, type, email } = req.body;
     if (!token && !token_hash) return res.status(400).json({ error: 'Token is required' });
 
     let data, error;
 
     if (token_hash) {
       // TokenHash flow (recommended — works with email scanners)
-      const result = await admin.auth.verifyOtp({
+      const result = await anon.auth.verifyOtp({
         token_hash,
         type: type || 'email',
       });
       data = result.data;
       error = result.error;
     } else if (token) {
-      // Legacy token flow
-      const result = await admin.auth.verifyOtp({
+      // Legacy token flow: supabase-js requires the email alongside a raw token.
+      const result = await anon.auth.verifyOtp({
         token,
+        email: email || undefined,
         type: type || 'signup',
       });
       data = result.data;
@@ -184,19 +186,30 @@ router.post('/confirm-all', authRequired, async (req, res) => {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return res.status(400).json({ error: 'Service role key required' });
     }
-    const { data: users, error: listErr } = await admin.auth.admin.listUsers();
-    if (listErr) throw listErr;
-
+    const perPage = 100;
+    let page = 1;
     let confirmed = 0;
     let skipped = 0;
-    for (const u of (users?.users || [])) {
-      if (u.email_confirmed_at) { skipped++; continue; }
-      try {
-        await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
-        confirmed++;
-      } catch {}
+    let total = 0;
+
+    // listUsers() is paginated — the first page only would leave most users
+    // unconfirmed on any non-trivial database.
+    for (;;) {
+      const { data, error: listErr } = await admin.auth.admin.listUsers({ page, perPage });
+      if (listErr) throw listErr;
+      const users = data?.users || [];
+      total += users.length;
+      for (const u of users) {
+        if (u.email_confirmed_at) { skipped++; continue; }
+        try {
+          await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
+          confirmed++;
+        } catch {}
+      }
+      if (users.length < perPage) break;
+      page++;
     }
-    return res.json({ confirmed, skipped, total: (users?.users || []).length });
+    return res.json({ confirmed, skipped, total });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }

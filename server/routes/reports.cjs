@@ -99,8 +99,8 @@ router.post('/:id/verify', authRequired, roleGuard('admin'), async (req, res) =>
     let points = null;
     if (finalVerdict === 'verified' && report.status !== 'verified') {
       points = await awardReportPoints(report);
-      recomputeSocietyScore(report.society_id).catch(() => {});
-      checkChallengeCompletions(report.society_id).catch(() => {});
+      await recomputeSocietyScore(report.society_id).catch((e) => console.error('[reports] score recompute failed:', e.message));
+      await checkChallengeCompletions(report.society_id).catch((e) => console.error('[reports] challenge check failed:', e.message));
     }
 
     return res.json({ report_id: report.id, status: finalVerdict, points });

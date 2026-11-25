@@ -32,7 +32,7 @@ server/routes/*.cjs       auth, requests, reports, problems, points, leaderboard
 public/                   role selector → role auth → role dashboards
 supabase/schema.sql       tables + realtime publication + row-level security
 scripts/seed.cjs          areas, societies, admin, demo users, sample data
-tests/                    cv + challenges unit tests, e2e + supplement integration scripts
+tests/                    offline cv + garbage unit tests, challenges/e2e/supplement integration scripts
 ```
 
 ## Role entry flow
@@ -49,9 +49,9 @@ index.html (role selector)
 1. **Create a free Supabase project** at https://supabase.com.
 2. In the Supabase SQL editor, run **`supabase/schema.sql`** — creates all tables,
    publishes them for Realtime, and enables row-level security (see Security below).
-3. **Storage**: the server auto-creates the public **`waste-photos`** bucket on boot.
-   If you prefer to create it manually: Storage → New bucket → name `waste-photos` →
-   check **Public bucket**, file size limit 8 MB.
+3. **Storage**: when running locally with `npm start` / `npm run dev`, the server auto-creates
+   the public **`waste-photos`** bucket on boot. On Vercel, create it manually:
+   Storage → New bucket → name `waste-photos` → check **Public bucket**, file size limit 8 MB.
 4. Copy `.env.example` to `.env` and fill in:
    ```env
    SUPABASE_URL=https://<project>.supabase.co
@@ -59,12 +59,14 @@ index.html (role selector)
    SUPABASE_SERVICE_ROLE_KEY=<service role key>    # secret — server only
    GROQ_API_KEY=<groq key for AI vision>           # optional; falls back to heuristic CV
    ```
-5. Install and seed:
+5. Install and seed **locally only**:
    ```bash
    npm install
-   npm run seed        # areas, societies, admin + demo users, sample data
+   npm run seed        # destructive: wipes existing data, then creates demo data
    npm run dev
    ```
+   `npm run seed` deletes existing rows before recreating areas, societies, demo accounts
+   and sample data. Never run it against a production or shared project.
 6. Open **http://localhost:8080** and pick a role.
 
 > **Secrets:** `SUPABASE_SERVICE_ROLE_KEY` and `GROQ_API_KEY` live only in `.env` (gitignored).
@@ -77,7 +79,7 @@ index.html (role selector)
 |---|---|---|
 | Municipality Admin | `admin@wastewise.app` | `Admin@123` |
 | Resident | `resident@wastewise.app` | `Resident@123` |
-| Collector | `collector@wastewise.app` | `Collector@123` |
+| Collector | `collector1@wastewise.app` | `Collector@123` |
 
 ## Verification pipeline (hybrid CV)
 
@@ -137,7 +139,7 @@ All changes go through `points_transactions` (immutable), feeding live leaderboa
 
 Residents post problems and comment on them. The admin sees every thread **ranked by the
 posting society's overall score** (highest-scoring societies first) with comment history,
-and can set status: open / in-progress / resolved.
+and can set status: `open` / `in_progress` / `resolved`.
 
 ## Admin traceability
 
@@ -180,22 +182,25 @@ on both dashboards.
 ## Tests
 
 ```bash
-npm test              # unit: CV sanity + garbage-photo gate + challenges
+npm test              # offline unit tests: CV matching + garbage-photo gate
+npm run test:all      # same two offline test files, run explicitly
 npm run test:cv       # CV matching only
 npm run test:garbage  # garbage-photo gate (accepts waste, rejects blank/empty/plain photos)
-npm run test:challenges  # challenge completion + bonus-payout logic
-npm run test:e2e      # full flow against a live Supabase project (needs .env)
-npm run test:supplement  # registration + admin override + no-double-points (needs .env)
+npm run test:challenges  # E2E challenge completion + bonus payout (needs .env + running server)
+npm run test:e2e      # full flow against a live Supabase project (needs .env + running server)
+npm run test:supplement  # registration + admin override + no-double-points (needs .env + running server)
 ```
 
-The integration tests (`test:e2e`, `test:supplement`) hit the live database configured in
-`.env`, so run them against your own Supabase project, not the demo one.
+The integration tests (`test:challenges`, `test:e2e`, `test:supplement`) hit the live database
+configured in `.env` and a server on `http://localhost:8080`; they fail fast with a clear
+message if Supabase credentials are missing. Run them against your own Supabase project, not
+the demo one. CI runs only the offline unit tests.
 
 ## Deployment
 
 WasteWise is a Node/Express app that serves the static frontend and the `/api` — as a
 long-running process (`npm start`) or as a Vercel serverless function (`api/index.js`).
-Host it on Vercel, Render, Railway, Fly.io, a VPS, or any Node 18+ platform.
+Host it on Vercel, Render, Railway, Fly.io, a VPS, or any Node 22+ platform.
 
 ### Vercel
 
@@ -204,8 +209,12 @@ The repo ships a Vercel-ready serverless setup (`vercel.json` + `api/index.js`),
 
 1. Import the repo on Vercel. It will deploy automatically — `vercel.json` rewrites every
    request to the Node function, which serves the frontend and `/api`.
-2. Add the env vars in Project → Settings → Environment Variables (same set as below).
-3. Re-run `supabase/schema.sql` and `npm run seed` against the production project first.
+2. Add the env vars in Project → Settings → Environment Variables (same set as below);
+   `SUPABASE_SERVICE_ROLE_KEY` is required in production.
+3. Apply `supabase/schema.sql` to your Supabase project and create the public `waste-photos`
+   storage bucket manually (8 MB file limit) — the boot-time auto-create is not reliable in
+   a serverless deployment. Do **not** run `npm run seed` against production: it is a
+   destructive local-only helper that wipes existing data.
 
 Vercel serverless functions cap request bodies at **~4.5 MB**, so phone photos larger than
 that will be rejected with 413 on Vercel. Camera captures (JPEG) are well under this;
@@ -224,12 +233,15 @@ if you hit it, reduce `multer`'s `fileSize` limit in `server/routes/requests.cjs
 
 ### Before going live
 
-- Re-run **`supabase/schema.sql`** on the production project (idempotent) so row-level
-  security is enabled.
-- Run `npm run seed` once against the production database, then create real societies
-  (or add an admin UI for it).
+- Apply **`supabase/schema.sql`** on the production project so the tables and row-level
+  security are in place; review the script before re-running it, as applying it again is
+  not guaranteed to be a no-op.
+- Create real societies via SQL or an admin UI. `npm run seed` is local-only and
+  destructive — it deletes existing rows, so never use it on production.
 - Set `NODE_ENV=production` — the server then sends the HSTS header, disables static
   asset revalidation, and hides internal error details.
+- Set `SUPABASE_SERVICE_ROLE_KEY`; the server warns and falls back to the anon key without
+  it, which is unsafe in production.
 - HTTPS is terminated by the platform; never expose the service-role key to the client.
 
 ## Environment variables
@@ -238,10 +250,12 @@ if you hit it, reduce `multer`'s `fileSize` limit in `server/routes/requests.cjs
 |---|---|---|---|
 | `SUPABASE_URL` | ✅ | — | Supabase project URL |
 | `SUPABASE_ANON_KEY` | ✅ | — | Public browser key (config + Realtime) |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ prod | anon fallback | Server-only key for all DB writes |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ (required in prod) | anon fallback (dev only) | Server-only key for all DB writes; never expose it to the browser |
 | `GROQ_API_KEY` | optional | — | AI vision for low-confidence photo matches + garbage-photo gate |
-| `GROQ_VISION_MODEL` | optional | `llama-3.2-90b-vision-preview` | Vision model id |
-| `AI_TIMEOUT_MS` | optional | `25000` | AI request timeout |
+| `GROQ_VISION_MODEL` | optional | `qwen/qwen3.6-27b` | Vision model for photo matching + garbage gate |
+| `AI_TIMEOUT_MS` | optional | `25000` | Vision request timeout |
+| `GROQ_CHAT_MODEL` | optional | `llama-3.3-70b-versatile` | Chatbot model id |
+| `CHAT_TIMEOUT_MS` | optional | `20000` | Chatbot request timeout |
 | `GARBAGE_PHOTO_CHECK` | optional | `true` | Enable the capture-time garbage-photo gate |
 | `GARBAGE_LOCAL_MIN` | optional | `0.62` | Local score ≥ this → accept without AI |
 | `GARBAGE_AI_MIN` | optional | `0.30` | Below this → reject locally; in between → AI confirm |
@@ -251,7 +265,7 @@ if you hit it, reduce `multer`'s `fileSize` limit in `server/routes/requests.cjs
 | `CV_TIME_MAX_H` | optional | `72` | Max before/after time gap (h) |
 | `SOCIETY_CITY_RADIUS_KM` | optional | `5` | "Societies in your city" radius (km) |
 | `PORT` | optional | `8080` | HTTP listen port |
-| `NODE_ENV` | optional | — | `production` enables hardening |
+| `NODE_ENV` | optional | — | `production` enables HSTS, disables static-asset revalidation and hides error details |
 
 ## Security
 

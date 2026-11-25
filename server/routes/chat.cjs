@@ -8,6 +8,33 @@ const CHAT_MODEL = process.env.GROQ_CHAT_MODEL || 'llama-3.3-70b-versatile';
 const CHAT_TIMEOUT_MS = Number(process.env.CHAT_TIMEOUT_MS || 20000);
 const MAX_HISTORY = 16;
 
+// Simple per-IP throttle — chatbot calls are expensive and unauthenticated.
+const RATE_WINDOW_MS = 60 * 1000;
+const RATE_MAX = Number(process.env.CHAT_RATE_MAX || 20);
+const rateHits = new Map(); // ip → timestamps of recent requests
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const recent = (rateHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (recent.length >= RATE_MAX) {
+    rateHits.set(ip, recent);
+    return true;
+  }
+  recent.push(now);
+  rateHits.set(ip, recent);
+  return false;
+}
+
+// Don't let the map grow forever on a long-lived process.
+setInterval(() => {
+  const cutoff = Date.now() - RATE_WINDOW_MS;
+  for (const [ip, hits] of rateHits) {
+    const recent = hits.filter((t) => t > cutoff);
+    if (recent.length) rateHits.set(ip, recent);
+    else rateHits.delete(ip);
+  }
+}, RATE_WINDOW_MS).unref();
+
 let _client;
 function getClient() {
   if (!_client) _client = new Groq({ apiKey: GROQ_API_KEY });
@@ -47,7 +74,7 @@ Give a SHORT 5-step summary. Example:
 
 **User asks "how do I get started" or "how to use":**
 Walk them through clearly:
-"Super easy! 1) Sign up as a Resident (or use the demo account) 2) Go to your dashboard and tap New Request 3) Take a photo — GPS is auto-captured 4) Hit submit! A collector will come pick it up. Want me to walk you through any step?"
+"Super easy! 1) Sign up as a Resident 2) Go to your dashboard and tap New Request 3) Take a photo — GPS is auto-captured 4) Hit submit! A collector will come pick it up. Want me to walk you through any step?"
 
 **User asks about points/rewards:**
 Be specific with numbers:
@@ -144,13 +171,6 @@ Redirect warmly: "Haha that's outside my zone! I'm all about WasteWise though �
 
 **Voice Assistant:** Web Speech API, Chrome works best
 
-**Demo Accounts:**
-- Resident: resident@wastewise.app / Resident@123
-- Collector: collector@wastewise.app / Collector@123
-- Admin: admin@wastewise.app / Admin@123
-
-**Current Stats:** 6 communities | 3 service zones | 100% photo verification | 33 verified collections | 9 verified dumping reports | 13 open problems | Top resident: 850 pts
-
 === RULES ===
 - Keep answers concise and scannable (bullets > paragraphs)
 - Never make up features or stats not listed above
@@ -161,6 +181,11 @@ Redirect warmly: "Haha that's outside my zone! I'm all about WasteWise though �
 
 // POST /api/chat
 router.post('/', async (req, res) => {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Too many requests — please try again in a minute.' });
+  }
+
   if (!GROQ_API_KEY) {
     return res.status(503).json({ error: 'Chat service unavailable', fallback: true });
   }

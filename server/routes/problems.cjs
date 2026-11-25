@@ -36,11 +36,27 @@ router.post('/', authRequired, roleGuard('resident'), upload.single('photo'), as
   }
 });
 
-// ---- Comment on a problem (resident) ----
-router.post('/:id/comments', authRequired, roleGuard('resident'), async (req, res) => {
+// ---- Comment on a problem (resident of that society; admin may bypass) ----
+router.post('/:id/comments', authRequired, async (req, res) => {
   try {
+    const role = req.profile.role;
+    if (role !== 'resident' && role !== 'admin') {
+      return res.status(403).json({ error: 'Only residents and admins can comment' });
+    }
     const { content } = req.body;
     if (!content || !content.trim()) return res.status(400).json({ error: 'Comment is required' });
+
+    const { data: problem, error: pErr } = await db
+      .from('society_problems')
+      .select('id, society_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+    if (pErr) return res.status(400).json({ error: pErr.message });
+    if (!problem) return res.status(404).json({ error: 'Problem not found' });
+    if (role !== 'admin' && problem.society_id !== req.profile.society_id) {
+      return res.status(403).json({ error: 'This problem is not in your society' });
+    }
+
     const { data, error } = await db
       .from('problem_comments')
       .insert({ problem_id: req.params.id, user_id: req.profile.id, content: content.trim() })
@@ -55,6 +71,7 @@ router.post('/:id/comments', authRequired, roleGuard('resident'), async (req, re
 
 // ---- List problems for my society (resident) with comments ----
 router.get('/society', authRequired, roleGuard('resident'), async (req, res) => {
+  if (!req.profile.society_id) return res.json({ problems: [] });
   const { data: problems, error } = await db
     .from('society_problems')
     .select('*, profiles(name), societies(name)')

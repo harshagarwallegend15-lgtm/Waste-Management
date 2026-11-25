@@ -12,18 +12,34 @@ async function init() {
   loadLeaderboard();
   loadAllUsers();
 
-  // Periodic dashboard refresh (every 30s) for live tracking
-  setInterval(() => loadDashboard(), 30000);
+  // Poll while realtime is unavailable; cleared once subscriptions are live.
+  const refreshAll = () => {
+    loadDashboard();
+    loadCollections();
+    loadReports();
+    loadProblems();
+    loadChallenges();
+    loadLeaderboard();
+  };
+  const poll = WWRealtime.startPoll(refreshAll, 30000);
 
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => { loadLeaderboard(); loadDashboard(); });
-  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => { loadLeaderboard(); loadProblems(); loadDashboard(); });
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'collection_requests' }, () => loadDashboard());
-  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests' }, () => { loadCollections(); loadDashboard(); });
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'society_problems' }, () => { loadProblems(); loadDashboard(); });
-  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_problems' }, () => loadProblems());
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'problem_comments' }, () => loadProblems());
-  WWRealtime.subscribe({ event: '*', schema: 'public', table: 'challenge_completions' }, () => loadChallenges());
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'dumping_reports' }, () => { loadReports(); loadDashboard(); });
+  let subs = [];
+  try {
+    subs = await Promise.all([
+      WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => { loadLeaderboard(); loadDashboard(); }),
+      WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => { loadLeaderboard(); loadProblems(); loadDashboard(); }),
+      WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'collection_requests' }, () => loadDashboard()),
+      WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'collection_requests' }, () => { loadCollections(); loadDashboard(); }),
+      WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'society_problems' }, () => { loadProblems(); loadDashboard(); }),
+      WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_problems' }, () => loadProblems()),
+      WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'problem_comments' }, () => loadProblems()),
+      WWRealtime.subscribe({ event: '*', schema: 'public', table: 'challenge_completions' }, () => loadChallenges()),
+      WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'dumping_reports' }, () => { loadReports(); loadDashboard(); })
+    ]);
+  } catch (err) {
+    console.warn('Realtime subscriptions failed; keeping polling fallback:', err);
+  }
+  if (WWRealtime.isAvailable() && subs.length && subs.every(Boolean)) clearInterval(poll);
 }
 
 function showTab(name) {
@@ -158,9 +174,10 @@ function renderTrendsChart(trends) {
       const reqH = Math.round((t.requests / maxVal) * 100);
       const verH = Math.round((t.verified / maxVal) * 100);
       const repH = Math.round((t.reports / maxVal) * 100);
-      const day = t.date.slice(5);
+      const day = WW.escapeHtml(t.date.slice(5));
+      const dateTitle = WW.escapeHtml(t.date);
       return `
-      <div class="trend-col" title="${t.date}\nRequests: ${t.requests}\nVerified: ${t.verified}\nReports: ${t.reports}">
+      <div class="trend-col" title="${dateTitle}\nRequests: ${t.requests}\nVerified: ${t.verified}\nReports: ${t.reports}">
         <div class="trend-bars">
           <div class="trend-bar blue" style="height:${reqH}%;"></div>
           <div class="trend-bar green" style="height:${verH}%;"></div>
@@ -187,7 +204,7 @@ function renderHotspots(hotspots) {
         ${h.area ? `<span class="hotspot-area">${WW.escapeHtml(h.area)}</span>` : ''}
       </div>
       <div class="hotspot-meta">${h.sample.map((s) => WW.fmtDate(s.timestamp)).join(' · ')}</div>
-      <a class="hotspot-map" href="https://www.google.com/maps?q=${h.lat},${h.lng}" target="_blank">📍 View on map</a>
+      <a class="hotspot-map" href="https://www.google.com/maps?q=${WW.escapeHtml(h.lat)},${WW.escapeHtml(h.lng)}" target="_blank">📍 View on map</a>
     </div>`).join('');
 }
 
@@ -222,14 +239,14 @@ async function loadCollections() {
              <td>${WW.escapeHtml(c.residents?.name || '—')}</td>
              <td>${WW.escapeHtml(c.collectors?.name || '—')}</td>
              <td class="photo-pair">
-               ${c.before_photo_url ? `<img class="photo-thumb" src="${c.before_photo_url}" />` : '<span class="muted">—</span>'}
-               ${c.after_photo_url ? `<img class="photo-thumb" src="${c.after_photo_url}" />` : ''}
+               ${c.before_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(c.before_photo_url)}" />` : '<span class="muted">—</span>'}
+               ${c.after_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(c.after_photo_url)}" />` : ''}
              </td>
              <td>${c.match_score != null ? (c.match_score * 100).toFixed(0) + '%' : '—'}</td>
              <td>${WW.badge(c.status)}</td>
             <td>${c.status === 'flagged' ? `
-                <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="overrideCollection('${c.id}','verified')">✓ ${t('admin.verifyBtn')}</button>
-                <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="overrideCollection('${c.id}','rejected')">✗ ${t('admin.rejectBtn')}</button>` : '—'}</td>
+                <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="overrideCollection('${WW.escapeHtml(c.id)}','verified')">✓ ${t('admin.verifyBtn')}</button>
+                <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="overrideCollection('${WW.escapeHtml(c.id)}','rejected')">✗ ${t('admin.rejectBtn')}</button>` : '—'}</td>
            </tr>`).join('')}
          </tbody></table>`
       : '<p class="muted">' + label + '.</p>';
@@ -261,13 +278,13 @@ async function loadReports() {
             <tr>
               <td>${WW.fmtDate(r.created_at)}</td>
               <td>${WW.escapeHtml(r.profiles?.name || '—')}</td>
-              <td>${r.photo_url ? `<a href="${r.photo_url}" target="_blank"><img class="photo-thumb" src="${r.photo_url}" /></a>` : '—'}</td>
+              <td>${r.photo_url ? `<a href="${WW.escapeHtml(r.photo_url)}" target="_blank"><img class="photo-thumb" src="${WW.escapeHtml(r.photo_url)}" /></a>` : '—'}</td>
               <td>${WW.escapeHtml(r.description || '—')}</td>
               <td>${WW.badge(r.status)}</td>
               <td>${r.status === 'pending' ? `
-                <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${r.id}','verified')">✓ ${t('admin.verifyBtn')}</button>
-                <button class="danger" style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${r.id}','rejected')">✗ ${t('admin.rejectBtn')}</button>
-                <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="verifyReport('${r.id}','duplicate')">${t('admin.duplicateBtn')}</button>` : '—'}</td>
+                <button style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${WW.escapeHtml(r.id)}','verified')">✓ ${t('admin.verifyBtn')}</button>
+                <button class="danger" style="font-size:0.8rem; padding:6px 10px; margin-bottom:4px;" onclick="verifyReport('${WW.escapeHtml(r.id)}','rejected')">✗ ${t('admin.rejectBtn')}</button>
+                <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="verifyReport('${WW.escapeHtml(r.id)}','duplicate')">${t('admin.duplicateBtn')}</button>` : '—'}</td>
             </tr>`).join('')}
           </tbody></table>`
       : '<p class="muted">' + t('admin.noSocietyProblems') + '</p>';
@@ -302,7 +319,7 @@ async function loadProblems() {
             · ${t('admin.comments')}: ${p.comment_count}
             · ${t('admin.by')} ${WW.escapeHtml(p.profiles?.name || '—')} · ${WW.fmtDate(p.created_at)}</p>
           ${p.description ? `<p>${WW.escapeHtml(p.description)}</p>` : ''}
-          ${p.photo_url ? `<img class="photo-thumb" src="${p.photo_url}" style="margin-top:6px;" />` : ''}
+          ${p.photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(p.photo_url)}" style="margin-top:6px;" />` : ''}
           <div style="margin-top:10px;">
             ${(p.comments || []).map((c) => `
               <div style="background:var(--bg); border-radius:8px; padding:8px 12px; margin-bottom:6px;">
@@ -312,9 +329,9 @@ async function loadProblems() {
               </div>`).join('')}
           </div>
           <div style="margin-top:10px; display:flex; gap:8px;">
-            <select id="st-${p.id}" class="hidden"> </select>
+            <select id="st-${WW.escapeHtml(p.id)}" class="hidden"> </select>
             ${['open', 'in_progress', 'resolved'].map((s) => `
-              <button class="${s === 'open' ? '' : 'secondary'}" style="font-size:0.8rem; padding:6px 10px;" onclick="setProblemStatus('${p.id}','${s}')">${s.replace('_', ' ')}</button>`).join('')}
+              <button class="${s === 'open' ? '' : 'secondary'}" style="font-size:0.8rem; padding:6px 10px;" onclick="setProblemStatus('${WW.escapeHtml(p.id)}','${s}')">${s.replace('_', ' ')}</button>`).join('')}
           </div>
         </div>`).join('')
       : '<p class="muted">' + t('admin.noSocietyProblems') + '</p>';
@@ -340,8 +357,8 @@ async function loadChallenges() {
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <h4 style="flex:1;">${WW.escapeHtml(c.title)}</h4>
             <span class="badge ${c.challenge_type === 'collections' ? 'blue' : c.challenge_type === 'reports' ? 'red' : c.challenge_type === 'score' ? 'green' : 'amber'}">${WW.escapeHtml(c.challenge_type)}</span>
-            <span class="hint">⏳ ${c.days_left} ${t('admin.daysLeft')} · +${c.reward_points} ${t('admin.pts')} · ${t('admin.ends')} ${c.ends_at}</span>
-            <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="closeChallenge('${c.id}')">${t('admin.closeBtn')}</button>
+            <span class="hint">⏳ ${c.days_left} ${t('admin.daysLeft')} · +${c.reward_points} ${t('admin.pts')} · ${t('admin.ends')} ${WW.escapeHtml(c.ends_at)}</span>
+            <button class="danger" style="font-size:0.8rem; padding:6px 10px;" onclick="closeChallenge('${WW.escapeHtml(c.id)}')">${t('admin.closeBtn')}</button>
           </div>
           ${c.description ? `<p class="muted">${WW.escapeHtml(c.description)}</p>` : ''}
           ${c.progress_rows.map((r) => {
@@ -362,7 +379,7 @@ async function loadChallenges() {
       ? data.history.map((c) => `
         <div class="rank-row">
           <div class="name" style="flex:1;">${WW.escapeHtml(c.title)} <span class="badge blue">${WW.escapeHtml(c.challenge_type)}</span></div>
-          <div class="pts" style="font-size:0.8rem;">${c.status} · ended ${c.ends_at}</div>
+          <div class="pts" style="font-size:0.8rem;">${WW.escapeHtml(c.status)} · ended ${WW.escapeHtml(c.ends_at)}</div>
         </div>`).join('')
       : '<p class="muted">' + t('admin.noChallengesYet') + '</p>';
   } catch (err) { WW.toast(err.message, true); }
@@ -436,7 +453,7 @@ async function searchUser() {
   $('user-results').innerHTML = matches.map((u) => `
     <div class="rank-row">
       <div class="name">${WW.escapeHtml(u.name)} (${u.points} pts)</div>
-      <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="viewUser('${u.id}')">${t('admin.fullTrace')} →</button>
+      <button class="secondary" style="font-size:0.8rem; padding:6px 10px;" onclick="viewUser('${WW.escapeHtml(u.id)}')">${t('admin.fullTrace')} →</button>
     </div>`).join('');
 }
 
@@ -446,9 +463,9 @@ async function viewUser(id) {
     const p = d.profile;
     $('user-results').innerHTML = `
       <div class="card" style="margin-top:12px;">
-        <h3>${WW.escapeHtml(p.name)} <span class="badge ${p.role === 'admin' ? 'blue' : p.role === 'collector' ? 'amber' : 'green'}">${p.role}</span></h3>
+        <h3>${WW.escapeHtml(p.name)} <span class="badge ${p.role === 'admin' ? 'blue' : p.role === 'collector' ? 'amber' : 'green'}">${WW.escapeHtml(p.role)}</span></h3>
         <p class="muted">${WW.escapeHtml(p.email)} · ${WW.escapeHtml(p.phone || t('admin.noPhone'))} · ${t('admin.societyLabel')}: ${WW.escapeHtml(p.societies?.name || '—')} · Area: ${WW.escapeHtml(p.areas?.name || '—')}</p>
-        <p class="muted">${t('admin.address')}: ${WW.escapeHtml(p.address_text || '—')} · ${t('admin.gps')}: ${p.gps_lat != null ? p.gps_lat.toFixed(5) + ', ' + p.gps_lng.toFixed(5) : '—'} · ${t('admin.points')}: <b>${p.points}</b> · ${t('admin.active')}: ${p.active}</p>
+        <p class="muted">${t('admin.address')}: ${WW.escapeHtml(p.address_text || '—')} · ${t('admin.gps')}: ${p.gps_lat != null ? p.gps_lat.toFixed(5) + ', ' + p.gps_lng.toFixed(5) : '—'} · ${t('admin.points')}: <b>${p.points}</b> · ${t('admin.active')}: ${WW.escapeHtml(p.active)}</p>
 
         <h4 style="margin-top:14px;">${t('admin.pointsLedger')}</h4>
         ${ledger(p, d.transactions)}
@@ -457,12 +474,12 @@ async function viewUser(id) {
           ${d.requests.map((r) => `<tr>
             <td>${WW.fmtDate(r.before_timestamp)}</td>
             <td>${WW.badge(r.status)}</td>
-            <td class="photo-pair">${r.before_photo_url ? `<img class="photo-thumb" src="${r.before_photo_url}"/>` : ''}${r.after_photo_url ? `<img class="photo-thumb" src="${r.after_photo_url}"/>` : ''}</td>
+            <td class="photo-pair">${r.before_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(r.before_photo_url)}"/>` : ''}${r.after_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(r.after_photo_url)}"/>` : ''}</td>
             <td>${r.match_score != null ? (r.match_score * 100).toFixed(0) + '%' : '—'}</td></tr>`).join('')}
         </tbody></table>` : '<p class="muted">' + t('admin.none') + '</p>'}
         <h4 style="margin-top:14px;">${t('admin.dumpingReports2')} (${d.reports.length})</h4>
         ${d.reports.length ? `<table><thead><tr><th>${t('admin.date')}</th><th>${t('admin.status')}</th><th>${t('admin.photos')}</th></tr></thead><tbody>
-          ${d.reports.map((r) => `<tr><td>${WW.fmtDate(r.created_at)}</td><td>${WW.badge(r.status)}</td><td>${r.photo_url ? `<a href="${r.photo_url}" target="_blank"><img class="photo-thumb" src="${r.photo_url}"/></a>` : '—'}</td></tr>`).join('')}
+          ${d.reports.map((r) => `<tr><td>${WW.fmtDate(r.created_at)}</td><td>${WW.badge(r.status)}</td><td>${r.photo_url ? `<a href="${WW.escapeHtml(r.photo_url)}" target="_blank"><img class="photo-thumb" src="${WW.escapeHtml(r.photo_url)}"/></a>` : '—'}</td></tr>`).join('')}
         </tbody></table>` : '<p class="muted">' + t('admin.none') + '</p>'}
         <h4 style="margin-top:14px;">${t('admin.societyProblemsPosted')} (${d.problems.length})</h4>
         ${d.problems.length ? d.problems.map((x) => `<p>• ${WW.escapeHtml(x.title)} — ${WW.badge(x.status)}</p>`).join('') : '<p class="muted">' + t('admin.none') + '</p>'}
@@ -476,7 +493,7 @@ function ledger(p, txns) {
   return `<table><thead><tr><th>${t('admin.date')}</th><th>${t('admin.reason2')}</th><th style="text-align:right;">Δ</th><th>${t('admin.balanceContext')}</th></tr></thead><tbody>
     ${txns.map((t) => `<tr><td>${WW.fmtDate(t.created_at)}</td><td>${WW.escapeHtml(t.reason)}</td>
       <td style="text-align:right; font-weight:700; color:${t.delta >= 0 ? 'var(--green-600)' : 'var(--red-500)'};">${t.delta >= 0 ? '+' : ''}${t.delta}</td>
-      <td class="muted">${t.source_type} #${t.source_id?.slice(0, 8) || ''}</td></tr>`).join('')}
+      <td class="muted">${WW.escapeHtml(t.source_type)} #${WW.escapeHtml(t.source_id?.slice(0, 8) || '')}</td></tr>`).join('')}
   </tbody></table>`;
 }
 

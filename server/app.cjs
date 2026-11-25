@@ -1,6 +1,9 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 
 // Express app factory — shared by the standalone server (server/index.cjs) and the
 // Vercel serverless function (api/index.js). Does NOT call app.listen(); platforms
@@ -61,7 +64,7 @@ app.use('/api/chat', require('./routes/chat.cjs'));
 app.use('/api/learn-earn', require('./routes/learn-earn.cjs'));
 
 // Lightweight garbage-photo check (client-side capture gate)
-const multerGarbage = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+const multerGarbage = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 const { assertGarbagePhoto, GateError } = require('./lib/garbage.cjs');
 app.post('/api/garbage/check', multerGarbage.single('photo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, error: 'No photo provided' });
@@ -99,7 +102,12 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 // Error handler — do not leak internal details in production
 app.use((err, req, res, next) => {
   if (!IS_PROD) console.error(err);
-  const status = err.status || (err.type === 'entity.too.large' ? 413 : 500);
+  let status;
+  if (err instanceof multer.MulterError) {
+    status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+  } else {
+    status = err.status || (err.type === 'entity.too.large' ? 413 : 500);
+  }
   res.status(status).json({ error: IS_PROD ? 'Internal server error' : (err.message || 'Internal error') });
 });
 

@@ -50,6 +50,22 @@
   --mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
   --font-body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-head: 'Outfit', 'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  /* Compatibility aliases — legacy names used by older pages, inline styles and JS */
+  --c-accent: var(--accent);
+  --c-muted: var(--muted);
+  --c-red: var(--red);
+  --c-green: var(--green);
+  --c-text: var(--ink);
+  --text: var(--ink);
+  --green-500: #22c55e;
+  --green-600: #16a34a;
+  --green-700: #15803d;
+  --amber-500: #f59e0b;
+  --red-500: #ef4444;
+  --accent-light: rgba(0, 245, 212, 0.06);
+  --bg-alt: var(--bg-2);
+  --bg-light: rgba(255, 255, 255, 0.06);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

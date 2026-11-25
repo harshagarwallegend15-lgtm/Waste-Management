@@ -1,8 +1,24 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
+const missingEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((k) => !process.env[k]);
+if (missingEnv.length) {
+  console.error('Missing required environment variable(s): ' + missingEnv.join(', '));
+  console.error('Copy .env.example to .env and set your Supabase URL + service-role key, then start the server `npm run dev` before running this E2E test.');
+  process.exit(1);
+}
+
 const { createClient } = require('@supabase/supabase-js');
 const sharp = require('sharp');
 
 const SUPA = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+const failures = [];
+function check(label, ok) {
+  console.log('  ' + (ok ? '✅' : '❌') + ' ' + label);
+  if (!ok) failures.push(label);
+}
+function score(cv) {
+  return typeof cv === 'number' ? (cv * 100).toFixed(0) + '%' : 'n/a';
+}
 
 async function login(email, password) {
   const { data, error } = await SUPA.auth.signInWithPassword({ email, password });
@@ -31,7 +47,7 @@ const blue = [{ x: 20, y: 30, w: 130, h: 100, fill: '#2255ff' }, { x: 180, y: 12
   console.log('=== Supplement: admin override + registration ===\n');
   const adminTok = await login('admin@wastewise.app', 'Admin@123');
   const resTok = await login('resident@wastewise.app', 'Resident@123');
-  const colTok = await login('collector@wastewise.app', 'Collector@123');
+  const colTok = await login('collector1@wastewise.app', 'Collector@123');
 
   // 1. New resident registration (auto area from society)
   const meta = await api(resTok, 'GET', '/api/meta');
@@ -50,7 +66,8 @@ const blue = [{ x: 20, y: 30, w: 130, h: 100, fill: '#2255ff' }, { x: 180, y: 12
   const colReg = await api('', 'POST', '/api/auth/register', {
     email: colEmail, password: 'Pass@1234', role: 'collector', name: 'New Collector',
   });
-  console.log('2. New collector registered:', colEmail, '| auto-assigned area:', colReg.area_name || '(null)', colReg.area_name ? '✅' : '⚠️');
+  console.log('2. New collector registered:', colEmail, '| auto-assigned area:', colReg.area_name || '(null)');
+  check('collector area auto-assigned', Boolean(colReg.area_name));
 
   // 3. Resident creates request with green-waste photo
   const f = new FormData();
@@ -64,20 +81,25 @@ const blue = [{ x: 20, y: 30, w: 130, h: 100, fill: '#2255ff' }, { x: 180, y: 12
   f2.append('photo', (await photo(blue, '#222')).blob, 'after.jpg');
   f2.append('gps_lat', '28.6142'); f2.append('gps_lng', '77.2093');
   const { verification } = await api(colTok, 'POST', `/api/requests/${request.id}/complete`, f2);
-  console.log('3. Different-photo completion →', verification.verdict, '| score:', (verification.cv_score * 100).toFixed(0) + '%', verification.verdict === 'flagged' || verification.verdict === 'rejected' ? '✅ (not auto-verified)' : '⚠️');
+  console.log('3. Different-photo completion →', verification.verdict, '| score:', score(verification.cv_score));
+  check('different photo was not auto-verified', verification.verdict === 'flagged' || verification.verdict === 'rejected');
 
   // 5. Admin override it to verified → points awarded
-  const before = await api(adminTok, 'GET', `/api/admin/users/${newTok ? '' : ''}`).catch(() => null);
   const detail = await api(adminTok, 'GET', `/api/admin/users/${request.resident_id}/detail`);
   const ptsBefore = detail.profile.points;
   const ov = await api(adminTok, 'POST', `/api/admin/collections/${request.id}/override`, { verdict: 'verified', reason: 'Supplement test - admin judgement' });
   const detail2 = await api(adminTok, 'GET', `/api/admin/users/${request.resident_id}/detail`);
-  console.log('4. Admin override →', ov.status, '| resident points', ptsBefore, '→', detail2.profile.points, ov.status === 'verified' && detail2.profile.points === ptsBefore + 20 ? '✅' : '⚠️');
+  console.log('4. Admin override →', ov.status, '| resident points', ptsBefore, '→', detail2.profile.points);
+  check('admin override awarded points exactly once', ov.status === 'verified' && detail2.profile.points === ptsBefore + 20);
 
   // 6. Double-override protection: overriding again must NOT re-award
   await api(adminTok, 'POST', `/api/admin/collections/${request.id}/override`, { verdict: 'verified', reason: 'again' });
   const detail3 = await api(adminTok, 'GET', `/api/admin/users/${request.resident_id}/detail`);
-  console.log('5. Re-override no double points:', detail3.profile.points === detail2.profile.points ? '✅' : '⚠️ (got ' + detail3.profile.points + ')');
+  check('re-override did not re-award points (got ' + detail3.profile.points + ')', detail3.profile.points === detail2.profile.points);
 
+  if (failures.length) {
+    console.error('\nSUPPLEMENT FAILED (' + failures.length + ' check(s)):\n- ' + failures.join('\n- '));
+    process.exit(1);
+  }
   console.log('\n=== SUPPLEMENT PASSED ===');
 })().catch((e) => { console.error('\nSUPPLEMENT FAILED:', e.message); process.exit(1); });

@@ -70,6 +70,7 @@
         <div class="loc-status" id="gps-status">Requesting location access…</div>
         <div class="loc-error hidden" id="gps-error"></div>
         <button class="loc-btn" id="retry-gps" style="display:none">Try again</button>
+        <button class="loc-skip" id="skip-gps" style="margin-top:10px">Skip for now</button>
       </div>
 
       <div id="phase-society" class="hidden">
@@ -117,6 +118,7 @@
       const $gpsStatus = document.getElementById('gps-status');
       const $gpsError = document.getElementById('gps-error');
       const $retryGps = document.getElementById('retry-gps');
+      const $skipGps = document.getElementById('skip-gps');
       const $phaseGps = document.getElementById('phase-gps');
       const $phaseSoc = document.getElementById('phase-society');
       const $phaseDone = document.getElementById('phase-done');
@@ -171,7 +173,10 @@
 
       async function loadSocieties() {
         try {
-          const res = await fetch('/api/societies/options?lat=' + userLat + '&lng=' + userLng);
+          const query = userLat != null && userLng != null
+            ? '?lat=' + encodeURIComponent(userLat) + '&lng=' + encodeURIComponent(userLng)
+            : '';
+          const res = await fetch('/api/societies/options' + query);
           const data = await res.json();
           societies = data.societies || [];
           showPhase('society');
@@ -244,6 +249,15 @@
       });
 
       $retryGps.addEventListener('click', requestGps);
+
+      // GPS denied/unavailable must not be a dead end — allow picking a
+      // society manually (or skipping) without any coordinates.
+      $skipGps.addEventListener('click', () => {
+        showPhase('society');
+        $socStatus.textContent = 'Choose a society manually.';
+        $skipSoc.textContent = 'Continue to dashboard';
+        loadSocieties();
+      });
 
       function escHtml(s) {
         const d = document.createElement('div');

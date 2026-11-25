@@ -128,7 +128,7 @@
     <div class="tech-card"><h4>i18n</h4><p><span class="highlight">5 Languages</span> — English, Hindi, Kannada, Tamil, Bengali.</p></div>
     <div class="tech-card"><h4>Realtime</h4><p><span class="highlight">Supabase Realtime</span> — Postgres CDC → live dashboards + 8s polling fallback.</p></div>
     <div class="tech-card"><h4>Device APIs</h4><p><span class="highlight">Geolocation</span>, <span class="highlight">getUserMedia</span> (camera), <span class="highlight">Web Speech API</span> (voice).</p></div>
-    <div class="tech-card"><h4>CI/CD</h4><p><span class="highlight">GitHub Actions</span> (Node 20/22 matrix) → <span class="highlight">Vercel</span> auto-deploy on push.</p></div>
+    <div class="tech-card"><h4>CI/CD</h4><p><span class="highlight">GitHub Actions</span> (Node 22) → <span class="highlight">Vercel</span> auto-deploy on push.</p></div>
   </div>
 </div>
 
@@ -195,7 +195,7 @@
     <div class="node server">
       <div class="icon">🛡️</div>
       <div class="label">assertGarbagePhoto()</div>
-      <div class="desc">Face/landscape rejection<br>Garbage confidence check</div>
+      <div class="desc">Blank / plain photo rejection<br>Garbage confidence check</div>
     </div>
     <div class="arrow"><div class="line"></div><div class="head">→</div></div>
     <div class="node storage">
@@ -264,20 +264,21 @@
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
-<!-- SECTION 4: AI VERIFICATION PIPELINE -->
+<!-- SECTION 4: GARBAGE-PHOTO GATE (CAPTURE-TIME) -->
 <!-- ══════════════════════════════════════════════ -->
 <div class="section">
-  <div class="section-title">🤖 AI Verification Pipeline</div>
+  <div class="section-title">🛡️ Garbage-Photo Gate (capture-time)</div>
   <div class="wide-flow">
     <div class="node server">
       <div class="icon">🖼️</div>
-      <div class="label">Before + After<br>Photos</div>
+      <div class="label">Incoming<br>Photo</div>
+      <div class="desc">before / after / report</div>
     </div>
     <div class="arrow"><div class="line"></div><div class="head">→</div></div>
     <div class="node server">
       <div class="icon">🔬</div>
-      <div class="label">Local CV Scoring</div>
-      <div class="desc">skinToneFraction (face)<br>landscape detection<br>garbage confidence</div>
+      <div class="label">classifyGarbage()</div>
+      <div class="desc">edge + texture +<br>foreground color heuristics</div>
     </div>
     <div class="arrow"><div class="line"></div><div class="head">→</div></div>
     <div class="node decision">
@@ -289,7 +290,7 @@
     <div class="node ai">
       <div class="icon">🧠</div>
       <div class="label">Groq AI Vision</div>
-      <div class="desc">qwen/qwen3.6-27b<br>Sends public HTTP URLs<br>reasoning_effort: none</div>
+      <div class="desc">ambiguous middle band only<br>qwen/qwen3.6-27b</div>
     </div>
     <div class="arrow"><div class="line"></div><div class="head">→</div></div>
     <div class="node decision">
@@ -300,14 +301,60 @@
     <div class="arrow"><div class="line"></div><div class="head">→</div></div>
     <div class="node success">
       <div class="icon">✅</div>
+      <div class="label">PHOTO ACCEPTED</div>
+      <div class="desc">continue upload</div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top:0.5rem;">
+    <span style="font-size:0.65rem; color:#64748b;">Below either threshold → HTTP 400, photo rejected before storage. This gate does not decide collection validity or award points.</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- SECTION 5: VERIFICATION PIPELINE -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🤖 Verification Pipeline (after both photos)</div>
+  <div class="wide-flow">
+    <div class="node server">
+      <div class="icon">🖼️</div>
+      <div class="label">Before + After<br>Photos</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node server">
+      <div class="icon">🔬</div>
+      <div class="label">Local CV Matching</div>
+      <div class="desc">pHash + dHash + aHash<br>HSV / spatial color + edges</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">📊</div>
+      <div class="label">Score ≥ 0.82?</div>
+      <div class="desc">CV_VERIFIED</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node ai">
+      <div class="icon">🧠</div>
+      <div class="label">Groq AI Vision</div>
+      <div class="desc">0.55–0.82 band<br>CV_AI_MIN</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node decision">
+      <div class="icon">📍</div>
+      <div class="label">GPS ≤ 300 m<br>time ≤ 72 h</div>
+      <div class="desc">CV_GPS_MAX_M / CV_TIME_MAX_H</div>
+    </div>
+    <div class="arrow"><div class="line"></div><div class="head">→</div></div>
+    <div class="node success">
+      <div class="icon">🏆</div>
       <div class="label">VERIFIED</div>
-      <div class="desc">Points awarded</div>
+      <div class="desc">points awarded; otherwise flagged</div>
     </div>
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
-<!-- SECTION 5: POINTS & REWARDS -->
+<!-- SECTION 6: POINTS & REWARDS -->
 <!-- ══════════════════════════════════════════════ -->
 <div class="section">
   <div class="section-title">💰 Points & Rewards System</div>
@@ -344,14 +391,14 @@
   <div style="text-align:center; margin-top:1rem;">
     <div class="node server" style="display:inline-block; max-width:500px;">
       <div class="icon">⚙️</div>
-      <div class="label">addPoints(profileId, amount, type, sourceId)</div>
-      <div class="desc">UPDATE profiles.points (realtime fires) → INSERT points_transactions → recomputeSocietyScore()</div>
+      <div class="label">addPoints(userId, delta, reason, sourceType, sourceId)</div>
+      <div class="desc">UPDATE profiles.points (realtime fires) → INSERT points_transactions (user_id, delta, reason, source_type) → recomputeSocietyScore()</div>
     </div>
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
-<!-- SECTION 6: CHATBOT -->
+<!-- SECTION 7: CHATBOT -->
 <!-- ══════════════════════════════════════════════ -->
 <div class="section">
   <div class="section-title">💬 Chatbot & Voice Flow</div>
@@ -387,7 +434,7 @@
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
-<!-- SECTION 7: DATABASE SCHEMA -->
+<!-- SECTION 8: DATABASE SCHEMA -->
 <!-- ══════════════════════════════════════════════ -->
 <div class="section">
   <div class="section-title">💾 Database Schema (Key Tables)</div>
@@ -397,16 +444,17 @@
     <div class="tech-card"><h4>areas</h4><p>id, name (Zone A, B, C)</p></div>
     <div class="tech-card"><h4>societies</h4><p>id, name, address, <span class="highlight">area_id</span>, gps_lat, gps_lng</p></div>
     <div class="tech-card"><h4>dumping_reports</h4><p>id, reporter_id, photo_url, description, status, gps</p></div>
-    <div class="tech-card"><h4>points_transactions</h4><p>id, profile_id, amount, type, source_id</p></div>
+    <div class="tech-card"><h4>points_transactions</h4><p>id, user_id, delta, reason, source_type, source_id, created_at</p></div>
     <div class="tech-card"><h4>society_scores</h4><p>society_id, score, period_end (daily snapshots)</p></div>
-    <div class="tech-card"><h4>challenges</h4><p>id, type, target, society_id, status, bonus_points</p></div>
+    <div class="tech-card"><h4>challenges</h4><p>id, title, challenge_type, target, reward_points, starts_at, ends_at, status</p></div>
+    <div class="tech-card"><h4>challenge_completions</h4><p>challenge_id, society_id (one payout per challenge + society)</p></div>
     <div class="tech-card"><h4>society_problems</h4><p>id, society_id, reporter_id, title, description, status</p></div>
     <div class="tech-card"><h4>learn_earn_sessions</h4><p>id, resident_id, score, answers, created_at</p></div>
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
-<!-- SECTION 8: REALTIME -->
+<!-- SECTION 9: REALTIME -->
 <!-- ══════════════════════════════════════════════ -->
 <div class="section">
   <div class="section-title">📡 Realtime Architecture</div>
@@ -436,7 +484,7 @@
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
-<!-- SECTION 9: SECURITY -->
+<!-- SECTION 10: SECURITY -->
 <!-- ══════════════════════════════════════════════ -->
 <div class="section">
   <div class="section-title">🔒 Security Layers</div>
@@ -466,14 +514,14 @@
       <div class="node server">
         <div class="icon">📸</div>
         <div class="label">Garbage Gate</div>
-        <div class="desc">Face/landscape rejection<br>CV + AI dual scoring</div>
+        <div class="desc">Reject blank / plain photos<br>edge + texture + AI confirm</div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
-<!-- SECTION 10: OVERALL SYSTEM -->
+<!-- SECTION 11: OVERALL SYSTEM -->
 <!-- ══════════════════════════════════════════════ -->
 <div class="section">
   <div class="section-title">🏗️ Overall System Map</div>

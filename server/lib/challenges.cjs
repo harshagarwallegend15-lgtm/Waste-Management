@@ -90,19 +90,30 @@ async function checkChallengeCompletions(societyId) {
     const progress = await computeProgress(challenge, societyId);
     if (progress < challenge.target) continue;
 
-    const { data: existing } = await db
+    const { data: existing, error: existErr } = await db
       .from('challenge_completions')
       .select('reward_awarded')
       .eq('challenge_id', challenge.id)
       .eq('society_id', societyId)
       .maybeSingle();
+    if (existErr) console.error('[challenges] completion lookup failed:', existErr.message);
     if (existing) continue;
 
-    await db.from('challenge_completions').insert({
-      challenge_id: challenge.id,
-      society_id: societyId,
-      reward_awarded: false,
-    });
+    // Upsert makes creation idempotent. Only a row created by this call is
+    // eligible for a payout — a conflict means somebody else recorded it.
+    const { data: created, error: insertErr } = await db
+      .from('challenge_completions')
+      .upsert(
+        { challenge_id: challenge.id, society_id: societyId, reward_awarded: false },
+        { onConflict: 'challenge_id,society_id' }
+      )
+      .select()
+      .maybeSingle();
+    if (insertErr) {
+      console.error('[challenges] completion insert failed:', insertErr.message);
+      continue;
+    }
+    if (!created) continue; // conflict — already completed
 
     // Pay out the bonus exactly once: +reward to each resident of the society
     const { data: residents } = await db
@@ -122,11 +133,12 @@ async function checkChallengeCompletions(societyId) {
       if (r) awarded++;
     }
     if (awarded > 0) {
-      await db
+      const { error: payErr } = await db
         .from('challenge_completions')
         .update({ reward_awarded: true })
         .eq('challenge_id', challenge.id)
         .eq('society_id', societyId);
+      if (payErr) console.error('[challenges] reward flag update failed:', payErr.message);
     }
     newlyCompleted.push({ challenge_id: challenge.id, society_id: societyId, progress, reward_points: challenge.reward_points, awarded });
   }
@@ -138,7 +150,7 @@ async function checkChallengeCompletions(societyId) {
     if ((allSocieties || []).length === 0) continue;
     const { count } = await db
       .from('challenge_completions')
-      .select('id', { count: 'exact', head: true })
+      .select('challenge_id', { count: 'exact', head: true })
       .eq('challenge_id', challenge.id);
     if (count === allSocieties.length) {
       await db.from('challenges').update({ status: 'completed' }).eq('id', challenge.id);

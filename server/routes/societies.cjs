@@ -83,8 +83,10 @@ router.patch('/me', authRequired, roleGuard('resident'), async (req, res) => {
       .single();
     if (pErr) return res.status(400).json({ error: pErr.message });
 
-    if (oldSocietyId && oldSocietyId !== society.id) recomputeSocietyScore(oldSocietyId).catch(() => {});
-    recomputeSocietyScore(society.id).catch(() => {});
+    if (oldSocietyId && oldSocietyId !== society.id) {
+      await recomputeSocietyScore(oldSocietyId).catch((e) => console.error('[societies] score recompute failed:', e.message));
+    }
+    await recomputeSocietyScore(society.id).catch((e) => console.error('[societies] score recompute failed:', e.message));
 
     return res.json({ profile, society_name: society.name });
   } catch (e) {

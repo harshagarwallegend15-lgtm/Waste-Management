@@ -8,6 +8,10 @@ async function authRequired(req, res, next) {
     if (!profile) {
       return res.status(403).json({ error: 'Profile not found' });
     }
+    // A valid JWT is not enough: deactivated accounts must lose access immediately.
+    if (profile.active === false) {
+      return res.status(403).json({ error: 'Account inactive' });
+    }
     req.user = user;
     req.token = token;
     req.profile = profile;

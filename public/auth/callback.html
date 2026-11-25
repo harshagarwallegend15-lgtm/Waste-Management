@@ -60,14 +60,17 @@
       const error = params.get('error');
       const errorDesc = params.get('error_description');
 
-      // Get role from query params
+      // Get role from query params (never trust arbitrary values in URLs)
       const urlParams = new URLSearchParams(window.location.search);
-      const role = urlParams.get('role') || 'resident';
+      const requestedRole = urlParams.get('role') || 'resident';
+      const role = ['resident', 'collector', 'admin'].includes(requestedRole) ? requestedRole : 'resident';
+      // Failure links must go back to the LOGIN page, not the protected dashboard.
+      const loginUrl = '/auth/' + (role === 'collector' || role === 'admin' ? role : 'resident') + '.html';
 
       if (error) {
         showError(errorDesc || error + '. ');
         const retry = document.createElement('a');
-        retry.href = '/' + role + '.html';
+        retry.href = loginUrl;
         retry.className = 'callback-retry';
         retry.textContent = 'Try again';
         statusEl.appendChild(retry);
@@ -77,7 +80,7 @@
       if (!accessToken) {
         showError('No authentication token received. ');
         const retry = document.createElement('a');
-        retry.href = '/' + role + '.html';
+        retry.href = loginUrl;
         retry.className = 'callback-retry';
         retry.textContent = 'Try again';
         statusEl.appendChild(retry);
@@ -97,7 +100,7 @@
         if (!res.ok) {
           showError(data.error || 'Authentication failed. ');
           const retry = document.createElement('a');
-          retry.href = '/' + role + '.html';
+          retry.href = loginUrl;
           retry.className = 'callback-retry';
           retry.textContent = 'Try again';
           statusEl.appendChild(retry);
@@ -118,7 +121,7 @@
       } catch (e) {
         showError('Something went wrong. Please try again. ');
         const retry = document.createElement('a');
-        retry.href = '/' + role + '.html';
+        retry.href = loginUrl;
         retry.className = 'callback-retry';
         retry.textContent = 'Try again';
         statusEl.appendChild(retry);

@@ -30,6 +30,15 @@ create table if not exists challenge_completions (
   primary key (challenge_id, society_id)
 );
 
+-- RLS mirrors schema.sql: public read, all writes through the service role.
+alter table challenges enable row level security;
+alter table challenge_completions enable row level security;
+
+drop policy if exists "challenges public read" on challenges;
+create policy "challenges public read" on challenges for select using (true);
+drop policy if exists "completions public read" on challenge_completions;
+create policy "completions public read" on challenge_completions for select using (true);
+
 -- Realtime: safe to run again -- only adds a table if it is NOT already a member.
 do $$
 begin

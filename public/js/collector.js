@@ -27,18 +27,30 @@ async function init() {
   await loadAreaRequests();
   loadLeaderboard();
 
-  WWRealtime.subscribe({ event: '*', schema: 'public', table: 'collection_requests' }, () => loadAreaRequests());
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions', filter: `user_id=eq.${profile.id}` }, () => { loadPoints(); loadLeaderboard(); });
-  WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => loadLeaderboard());
-  WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => loadLeaderboard());
-
+  // Poll from the start; it is stopped once realtime subscriptions are live.
   startPoll();
+  let subs = [];
+  try {
+    subs = await Promise.all([
+      WWRealtime.subscribe({ event: '*', schema: 'public', table: 'collection_requests' }, () => loadAreaRequests()),
+      WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions', filter: `user_id=eq.${profile.id}` }, () => { loadPoints(); loadLeaderboard(); }),
+      WWRealtime.subscribe({ event: 'UPDATE', schema: 'public', table: 'society_scores' }, () => loadLeaderboard()),
+      WWRealtime.subscribe({ event: 'INSERT', schema: 'public', table: 'points_transactions' }, () => loadLeaderboard())
+    ]);
+  } catch (err) {
+    console.warn('Realtime subscriptions failed; keeping polling fallback:', err);
+  }
+  if (WWRealtime.isAvailable() && subs.length && subs.every(Boolean)) stopPoll();
 }
 
 let _poll = null;
 function startPoll() {
   if (_poll) return;
-  _poll = setInterval(() => loadAreaRequests(), 10000);
+  _poll = WWRealtime.startPoll(() => loadAreaRequests(), 10000);
+}
+function stopPoll() {
+  if (_poll) clearInterval(_poll);
+  _poll = null;
 }
 
 function stopCamera() {
@@ -136,8 +148,8 @@ function renderAreaRequests(requests, residents) {
         <div class="muted" style="font-size:0.85rem; margin-top:2px;">${WW.escapeHtml(req.resident_address || 'No address')}</div>
         ${req.resident_society ? `<div class="muted" style="font-size:0.82rem;">🏘️ ${WW.escapeHtml(req.resident_society)}</div>` : ''}
       </div>
-      ${req.before_photo_url ? `<img class="photo-thumb" src="${req.before_photo_url}" style="flex-shrink:0;" />` : ''}
-      <button onclick="openResident('${req.resident_id}')" style="flex-shrink:0;">Open →</button>
+      ${req.before_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(req.before_photo_url)}" style="flex-shrink:0;" />` : ''}
+      <button onclick="openResident('${WW.escapeHtml(req.resident_id)}')" style="flex-shrink:0;">Open →</button>
     </div>`).join('');
 }
 
@@ -183,7 +195,7 @@ async function openResident(id) {
   $('work-name').textContent = resident.name;
   $('work-address').textContent = resident.address_text || 'No address on file';
   $('work-map').innerHTML = resident.gps_lat
-    ? `📍 <a href="${WWGps.mapsUrl(resident.gps_lat, resident.gps_lng)}" target="_blank">View on map</a>`
+    ? `📍 <a href="${WW.escapeHtml(WWGps.mapsUrl(resident.gps_lat, resident.gps_lng))}" target="_blank">View on map</a>`
     : `<span class="muted">No GPS saved</span>`;
 
   if (resident.gps_lat) {
@@ -233,7 +245,7 @@ function renderRequestList(resident) {
     <div class="request-item ${i === selIdx ? 'selected' : ''}" onclick="selectRequest(${i})" style="display:flex; gap:10px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer; border-radius:6px; ${i === selIdx ? 'background:var(--bg-light,rgba(255,255,255,0.06));' : ''}">
       <span style="flex:1;">${WW.fmtDate(req.before_timestamp)}</span>
       <span class="badge ${req.waste_type === 'mixed' ? 'gray' : 'green'}">${WW.escapeHtml(req.waste_type)}</span>
-      ${req.before_photo_url ? `<img class="photo-thumb" src="${req.before_photo_url}?t=${Date.now()}" />` : ''}
+      ${req.before_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(req.before_photo_url)}?t=${Date.now()}" />` : ''}
     </div>`).join('');
 }
 
@@ -394,7 +406,7 @@ function renderResult(v) {
 
   $('work-result').innerHTML = `
     <h3>Verification Result ${verdictHtml}</h3>
-    <p style="margin-top:8px;">Match Score: <b>${score}%</b> (method: ${v.cv_method || 'local'})</p>
+    <p style="margin-top:8px;">Match Score: <b>${score}%</b> (method: ${WW.escapeHtml(v.cv_method || 'local')})</p>
     ${v.ai_reason ? `<p class="muted">AI verdict: ${WW.escapeHtml(v.ai_reason)}</p>` : ''}
     <p class="muted" style="margin-top:6px;">${reasons}</p>
     ${v.verdict === 'verified' ? `<p class="hint" style="margin-top:8px;">Points awarded to both you and the resident.</p>` : `<p class="hint" style="margin-top:8px;">Flagged for admin review.</p>`}`;

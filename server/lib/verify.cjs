@@ -1,6 +1,6 @@
 const sharp = require('sharp');
 const { db } = require('./supabase.cjs');
-const { similarity } = require('./cv.cjs');
+const { similarity, foregroundStats, edgeDensity } = require('./cv.cjs');
 const { groqComparePhotos } = require('./ai.cjs');
 
 // Tuneable thresholds (override via env)
@@ -9,6 +9,7 @@ const MAX_TIME_DELTA_H = Number(process.env.CV_TIME_MAX_H || 72);      // reques
 const LOCAL_VERIFIED = Number(process.env.CV_VERIFIED || 0.82);        // >= this → auto-verified locally
 const AI_BAND_MIN = Number(process.env.CV_AI_MIN || 0.55);             // in [AI_BAND_MIN, LOCAL_VERIFIED) → ask AI vision
 const EMPTY_FG_SCORE = 0.03;                                           // after-photo with almost no foreground → suspicious
+const EMPTY_EDGE_SCORE = 0.06;                                         // after-photo with almost no edges → suspicious
 
 /** Preprocess an image to a canonical form: EXIF-oriented, ≤512px, JPEG quality 85. */
 async function preprocess(buf, contentType) {
@@ -96,11 +97,17 @@ async function verifyCollection(reqRow, afterBuffer) {
   let cvScore = localScore;
   let aiReason = '';
 
-  // Emptiness sanity: if the after-photo contains almost no foreground/edges,
-  // the collector may have photographed an empty doorstep instead of the waste.
-  const afterFg = parts.fg;
-  const afterEdge = parts.edge;
-  const emptyAfter = afterFg != null && afterFg < EMPTY_FG_SCORE && afterEdge < 0.06;
+  // Emptiness sanity: measure the after-photo on its own, not a before/after
+  // similarity signal — a collector may have photographed an empty doorstep.
+  const [afterFgStats, afterEdges] = await Promise.all([
+    foregroundStats(afterCanon),
+    edgeDensity(afterCanon),
+  ]);
+  const afterFg = afterFgStats.fraction;
+  const afterEdge = afterEdges.length
+    ? afterEdges.reduce((a, b) => a + b, 0) / afterEdges.length
+    : 0;
+  const emptyAfter = afterFg < EMPTY_FG_SCORE && afterEdge < EMPTY_EDGE_SCORE;
   if (emptyAfter) {
     reasons.push({ check: 'local_cv', reason: 'After-photo appears empty (no foreground objects detected)' });
     verdict = 'flagged';
@@ -134,16 +141,22 @@ async function verifyCollection(reqRow, afterBuffer) {
   const timeDeltaMin = minutesBetween(reqRow.before_timestamp, reqRow.after_timestamp);
   const timeDeltaH = timeDeltaMin == null ? null : timeDeltaMin / 60;
 
-  if (gpsDistance != null && gpsDistance > MAX_GPS_DISTANCE_M) {
+  if (gpsDistance == null) {
+    reasons.push({ check: 'gps', reason: 'GPS data missing for before/after photo' });
+    verdict = 'flagged';
+  } else if (gpsDistance > MAX_GPS_DISTANCE_M) {
     reasons.push({ check: 'gps', reason: `Distance ${Math.round(gpsDistance)}m exceeds ${MAX_GPS_DISTANCE_M}m` });
     verdict = 'flagged';
-  } else if (gpsDistance != null) {
+  } else {
     reasons.push({ check: 'gps', reason: `Distance ${Math.round(gpsDistance)}m` });
   }
-  if (timeDeltaH != null && timeDeltaH > MAX_TIME_DELTA_H) {
+  if (timeDeltaH == null) {
+    reasons.push({ check: 'time', reason: 'Timestamp missing for before/after photo' });
+    verdict = 'flagged';
+  } else if (timeDeltaH > MAX_TIME_DELTA_H) {
     reasons.push({ check: 'time', reason: `Time window ${timeDeltaH.toFixed(1)}h exceeds ${MAX_TIME_DELTA_H}h` });
     verdict = 'flagged';
-  } else if (timeDeltaH != null) {
+  } else {
     reasons.push({ check: 'time', reason: `Time window ${timeDeltaH.toFixed(1)}h` });
   }
 
@@ -151,7 +164,10 @@ async function verifyCollection(reqRow, afterBuffer) {
   const signalSummary = Object.entries(parts)
     .map(([k, v]) => `${k}:${(v || 0).toFixed(2)}`)
     .join(', ');
-  reasons.push({ check: 'signals', reason: signalSummary });
+  reasons.push({
+    check: 'signals',
+    reason: `${signalSummary}, after_fg:${afterFg.toFixed(2)}, after_edge:${afterEdge.toFixed(2)}`,
+  });
   const event = await logEvent({
     entity_type: 'collection',
     entity_id: reqRow.id,
@@ -177,7 +193,7 @@ async function verifyCollection(reqRow, afterBuffer) {
   return {
     verdict, cv_score: cvScore, cv_method: cvMethod,
     gps_distance: gpsDistance, time_delta_min: timeDeltaMin,
-    reasons, signals: parts, event, ai_reason: aiReason,
+    reasons, signals: { ...parts, after_fg: afterFg, after_edge: afterEdge }, event, ai_reason: aiReason,
   };
 }
 

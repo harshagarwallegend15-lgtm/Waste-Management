@@ -17,13 +17,14 @@ WHERE cr.resident_id = p.id
   AND cr.area_id IS NULL
   AND p.area_id IS NOT NULL;
 
--- 3. Remaining null-area requests: set area_id from society lookup
+-- 3. Remaining null-area requests: set area_id from society lookup.
+--    Only societies that actually know their area can repair the request.
 UPDATE collection_requests cr
 SET area_id = s.area_id
 FROM societies s
 WHERE cr.society_id = s.id
   AND cr.area_id IS NULL
-  AND s.area_id IS NULL;
+  AND s.area_id IS NOT NULL;
 
 -- Verify: count remaining null-area records
 SELECT 'profiles with null area_id' AS label, count(*) AS cnt FROM profiles WHERE role = 'resident' AND area_id IS NULL

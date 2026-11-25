@@ -22,7 +22,7 @@
     { keys: ['step 5', 'fifth step', 'step five', 'what do i get', 'what happens after'], reply: "Step 5 — **Reward**! Once verified:\n- You get **+20 points** (collector gets +10)\n- Your leaderboard position updates\n- Your society score improves\n- Community stats update in real-time!\n\nPoints stack up and unlock better rankings for your whole neighborhood! 🏆" },
 
     // --- Get started ---
-    { keys: ['get started', 'start', 'how to start', 'begin', 'how to use', 'how do i use', 'how to join', 'sign up', 'register', 'create account'], reply: "Getting started takes 2 minutes! 🚀\n\n1. Click **Sign In** on the homepage\n2. Choose your role: Resident, Collector, or Admin\n3. Sign up with your email and password\n4. Fill in your name, phone, and allow GPS\n\nOr just try the demo accounts:\n- **Resident**: resident@wastewise.app / Resident@123\n- **Collector**: collector@wastewise.app / Collector@123\n- **Admin**: admin@wastewise.app / Admin@123\n\nWant me to walk you through any of these?" },
+    { keys: ['get started', 'start', 'how to start', 'begin', 'how to use', 'how do i use', 'how to join', 'sign up', 'register', 'create account'], reply: "Getting started takes 2 minutes! 🚀\n\n1. Click **Sign In** on the homepage\n2. Choose your role: Resident, Collector, or Admin\n3. Sign up with your email and password\n4. Fill in your name, phone, and allow GPS\n\nOr just try the demo accounts:\n- **Resident**: resident@wastewise.app / Resident@123\n- **Collector**: collector1@wastewise.app / Collector@123\n- **Admin**: admin@wastewise.app / Admin@123\n\nWant me to walk you through any of these?" },
 
     // --- Features ---
     { keys: ['feature', 'features', 'what can it do', 'capabilities', 'what do you offer', 'what features', 'all features'], reply: "We've got a lot packed in! Here are the highlights:\n\n- **AI photo verification** — every collection is verified\n- **GPS tracking** — auto-captured for requests & pickups\n- **Points & leaderboards** — earn rewards for being active\n- **Society scores** — your neighborhood's health grade\n- **Community challenges** — earn bonus points together\n- **Dumping reports** — snap illegal dumping, earn 15 pts\n- **Problem board** — flag local issues (streetlights, drainage)\n- **5 languages** — English, Hindi, Kannada, Tamil, Bengali\n- **Voice assistant** — that's me! Ask by voice too 🎤\n\nWant to know more about any of these?" },
@@ -80,7 +80,7 @@
     { keys: ['login', 'signup', 'sign up', 'register', 'account', 'password', 'email', 'auth', 'authentication', 'log in', 'forgot password'], reply: "Getting started is easy!\n\n1. Click **Sign In** on the homepage\n2. Choose your role: Resident, Collector, or Admin\n3. **Residents & Collectors**: Sign up with email + password (min 6 chars), then fill in name, phone, and GPS\n4. **Admins**: Pre-configured accounts only (no self-registration)\n\nYour session is stored securely with JWT tokens. Can't mix roles — a resident account won't work on the collector page! 🔐" },
 
     // --- Demo ---
-    { keys: ['demo', 'demo account', 'try', 'test', 'play around', 'try it out', 'test account'], reply: "Want to explore? We've got demo accounts ready!\n\n- **Resident**: resident@wastewise.app / Resident@123\n- **Collector**: collector@wastewise.app / Collector@123\n- **Admin**: admin@wastewise.app / Admin@123\n\nThese are pre-filled on each login page. Go ahead and explore — you won't break anything! 🎮" },
+    { keys: ['demo', 'demo account', 'try', 'test', 'play around', 'try it out', 'test account'], reply: "Want to explore? We've got demo accounts ready!\n\n- **Resident**: resident@wastewise.app / Resident@123\n- **Collector**: collector1@wastewise.app / Collector@123\n- **Admin**: admin@wastewise.app / Admin@123\n\nThese are pre-filled on each login page. Go ahead and explore — you won't break anything! 🎮" },
 
     // --- Education ---
     { keys: ['education', 'segregation', 'segregate', 'wet waste', 'dry waste', 'hazardous', 'recycling', 'learn', 'lesson', 'waste type', 'waste types'], reply: "We've got **behaviour-based education**! Here's how it works:\n\n- Submit 2+ **mixed waste** collections → you get a segregation lesson\n- Complete 5 **properly segregated** collections in a row → recognition badge + **5 bonus points**! 🏅\n\nWaste types:\n- **Wet** 🟢: food scraps, organic matter\n- **Dry** 🔵: paper, plastic, metal, glass\n- **Hazardous** 🔴: batteries, chemicals, medical waste\n\nProper segregation helps recycling and reduces landfill impact! ♻️" },
@@ -492,7 +492,8 @@
   }
 
   function formatMsg(text) {
-    return text
+    var safe = (window.WW && window.WW.escapeHtml) ? window.WW.escapeHtml(text) : String(text);
+    return safe
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\n/g, '<br>');
   }

@@ -210,13 +210,26 @@
       var role = header.dataset.role || '';
       var roleIcon = role === 'admin' ? '\uD83C\uDFDB\uFE0F' : role === 'collector' ? '\uD83D\uDE9B' : '\uD83C\uDFE0';
       var roleLabel = role === 'admin' ? t('nav.roleAdmin') : role === 'collector' ? t('nav.roleCollector') : t('nav.roleResident');
+
+      // The header is rebuilt on language changes — keep the live user details
+      // without waiting for the dashboard script to re-apply them.
+      var oldName = document.getElementById('nav-name');
+      var oldPoints = document.getElementById('nav-points');
+      var oldArea = document.getElementById('nav-area');
+      var prof = (window.WW && window.WW.getProfile) ? window.WW.getProfile() : null;
+      var esc = function (v) { return (window.WW && window.WW.escapeHtml) ? window.WW.escapeHtml(v) : String(v == null ? '' : v); };
+      var navName = (oldName && oldName.textContent && oldName.textContent !== '\u2026')
+        ? oldName.textContent : ((prof && prof.name) || '\u2026');
+      var navPoints = oldPoints ? oldPoints.textContent : ((prof && prof.points != null) ? prof.points : 0);
+      var navArea = oldArea ? oldArea.textContent : ((prof && (prof.area_name || prof.area)) || '\u2014');
+
       var chip = '<div class="user-chip">' +
         '<span class="avatar">' + roleIcon + '</span>' +
         '<span class="chip-info">' +
-        '<span class="chip-name" id="nav-name">\u2026</span>' +
-        '<span class="chip-meta"><span class="chip-role">' + roleLabel + '</span>';
-      if (role === 'collector') chip += '<span class="chip-area">\uD83D\uDCCD <span id="nav-area">\u2014</span></span>';
-      chip += '<span class="chip-pts">\u2B50 <span id="nav-points">0</span></span></span></span></div>';
+        '<span class="chip-name" id="nav-name">' + esc(navName) + '</span>' +
+        '<span class="chip-meta"><span class="chip-role">' + esc(roleLabel) + '</span>';
+      if (role === 'collector') chip += '<span class="chip-area">\uD83D\uDCCD <span id="nav-area">' + esc(navArea) + '</span></span>';
+      chip += '<span class="chip-pts">\u2B50 <span id="nav-points">' + esc(navPoints) + '</span></span></span></span></div>';
       links = '<a class="nav-link" href="/">' + ico('home') + '<span>' + t('nav.home') + '</span></a>';
       right = chip + buildLangDropdown() +
         '<button class="nav-logout">' + ico('logout') + '<span>' + t('nav.logout') + '</span></button>';
@@ -295,8 +308,22 @@
       '</div>';
   }
 
+  // ---- Document-level listeners (bound once, even across header rebuilds) ----
+  var outsideClickBound = false;
+  function bindOutsideClickOnce() {
+    if (outsideClickBound) return;
+    outsideClickBound = true;
+    document.addEventListener('click', function (e) {
+      var sw = document.getElementById('lang-switcher');
+      if (sw && !sw.contains(e.target)) sw.classList.remove('open');
+    });
+  }
+
+  var scrollBound = false;
+
   // ---- Bind header interactive events (after build/rebuild) ----
   function bindHeaderEvents() {
+    bindOutsideClickOnce();
     // Burger menu toggle
     var burgerBtn = header ? header.querySelector('.menu-btn') : null;
     if (burgerBtn) {
@@ -339,20 +366,15 @@
       }
     }
 
-    // Close language dropdown on outside click
-    document.addEventListener('click', function (e) {
-      var sw = document.getElementById('lang-switcher');
-      if (sw && !sw.contains(e.target)) sw.classList.remove('open');
-    });
-
-    // Scroll-aware header
-    if (header) {
+    // Scroll-aware header (listener is installed once; header element is stable)
+    if (header && !scrollBound) {
+      scrollBound = true;
       var onScroll = function () {
         header.classList.toggle('scrolled', window.scrollY > 20);
       };
       window.addEventListener('scroll', onScroll, { passive: true });
-      onScroll();
     }
+    if (header) header.classList.toggle('scrolled', window.scrollY > 20);
   }
 
   // ---- Initial build ----

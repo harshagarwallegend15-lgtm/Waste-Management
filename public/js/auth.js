@@ -206,7 +206,7 @@ async function doSignup(e) {
         '<div style="text-align:center;padding:20px 0;">' +
           '<div style="font-size:2.5rem;margin-bottom:12px;">✉️</div>' +
           '<h3 style="margin:0 0 8px;font-size:1.1rem;">Check your email</h3>' +
-          '<p style="color:var(--c-muted);font-size:0.9rem;margin:0 0 6px;line-height:1.5;">We sent a verification link to<br><strong>' + body.email + '</strong></p>' +
+          '<p style="color:var(--c-muted);font-size:0.9rem;margin:0 0 6px;line-height:1.5;">We sent a verification link to<br><strong>' + (window.WW && WW.escapeHtml ? WW.escapeHtml(body.email) : body.email) + '</strong></p>' +
           '<p style="color:var(--c-muted);font-size:0.82rem;margin:0;line-height:1.5;">Click the link in the email to verify your account, then come back and log in.</p>' +
           '<a href="/auth/' + ROLE + '.html" style="display:inline-block;margin-top:16px;padding:10px 24px;background:var(--c-accent);color:#000;border:none;border-radius:10px;font-weight:700;font-size:0.88rem;cursor:pointer;text-decoration:none;">Back to Login</a>' +
         '</div>';

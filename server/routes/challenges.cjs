@@ -65,6 +65,13 @@ function daysLeft(endDate) {
   return Math.max(0, Math.ceil((end - new Date()) / (24 * 3600 * 1000)));
 }
 
+/** Parse a reward amount: finite and >= 0 (including 0). null means invalid. */
+function parseRewardPoints(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 // ---- Create a challenge (admin) ----
 router.post('/', authRequired, roleGuard('admin'), async (req, res) => {
   const { title, description, challenge_type, target, reward_points, starts_at, ends_at } = req.body;
@@ -72,7 +79,8 @@ router.post('/', authRequired, roleGuard('admin'), async (req, res) => {
   if (!TYPES[challenge_type]) return res.status(400).json({ error: 'Invalid challenge type' });
   const targetNum = Number(target);
   if (!Number.isFinite(targetNum) || targetNum <= 0) return res.status(400).json({ error: 'Target must be a positive number' });
-  const reward = Number(reward_points) || 25;
+  const reward = reward_points === undefined ? 25 : parseRewardPoints(reward_points);
+  if (reward === null) return res.status(400).json({ error: 'reward_points must be a non-negative number' });
   if (!starts_at || !ends_at) return res.status(400).json({ error: 'Start and end dates are required' });
   if (ends_at < starts_at) return res.status(400).json({ error: 'End date must be after start date' });
 
@@ -110,7 +118,11 @@ router.patch('/:id', authRequired, roleGuard('admin'), async (req, res) => {
     if (!Number.isFinite(n) || n <= 0) return res.status(400).json({ error: 'Target must be a positive number' });
     patch.target = n;
   }
-  if (reward_points !== undefined) patch.reward_points = Number(reward_points) || 25;
+  if (reward_points !== undefined) {
+    const reward = parseRewardPoints(reward_points);
+    if (reward === null) return res.status(400).json({ error: 'reward_points must be a non-negative number' });
+    patch.reward_points = reward;
+  }
   if (starts_at !== undefined) patch.starts_at = starts_at.slice(0, 10);
   if (ends_at !== undefined) patch.ends_at = ends_at.slice(0, 10);
   if (status !== undefined) {

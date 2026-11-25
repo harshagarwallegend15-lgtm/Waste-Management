@@ -20,7 +20,9 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 
 const server = app.listen(PORT, () => {
   console.log(`WasteWise server running on http://localhost:${PORT}${IS_PROD ? ' (production)' : ''}`);
-  ensureBucket('waste-photos');
+  ensureBucket('waste-photos').catch((e) => {
+    console.warn('Could not ensure waste-photos bucket:', e.message || e);
+  });
 });
 
 // Graceful shutdown

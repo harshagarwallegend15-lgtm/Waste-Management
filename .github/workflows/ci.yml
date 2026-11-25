@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: [22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +22,7 @@ jobs:
         run: |
           for f in $(find server scripts tests api -name '*.cjs' -o -name '*.js' | grep -v node_modules); do node --check "$f"; done
           for f in $(find public/js -name '*.js'); do node --check "$f"; done
-      - name: Unit tests (CV matching — no external services)
+      - name: Unit tests (CV + garbage — no external services)
         env:
           SUPABASE_URL: "https://placeholder.supabase.co"
           SUPABASE_ANON_KEY: "placeholder"
@@ -30,3 +30,44 @@ jobs:
         run: |
           npm run test:cv
           npm run test:garbage
+      - name: Verify data-i18n keys exist in dictionaries
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const vm = require('vm');
+          const sandbox = {
+            window: {},
+            localStorage: { getItem: () => 'en', setItem() {} },
+            document: {
+              readyState: 'complete',
+              documentElement: {},
+              querySelector: () => null,
+              querySelectorAll: () => [],
+              createElement: () => ({}),
+              head: { appendChild() {} },
+              addEventListener() {},
+            },
+          };
+          vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('public/js/i18n.js', 'utf8'), sandbox);
+          const t = sandbox.window.WWI18n.t;
+          function walk(dir) {
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+              const p = path.join(dir, e.name);
+              return e.isDirectory() ? walk(p) : e.name.endsWith('.html') ? [p] : [];
+            });
+          }
+          const missing = [];
+          for (const file of walk('public')) {
+            const html = fs.readFileSync(file, 'utf8');
+            for (const m of html.matchAll(/data-i18n(?:-html|-placeholder|-title|-aria)?="([^"]+)"/g)) {
+              if (t(m[1]) === m[1] && !missing.includes(m[1])) missing.push(m[1] + ' (' + file + ')');
+            }
+          }
+          if (missing.length) {
+            console.error('Missing i18n dictionary keys:\n- ' + missing.join('\n- '));
+            process.exit(1);
+          }
+          console.log('All data-i18n keys are present in the dictionaries.');
+          NODE

@@ -131,8 +131,8 @@
 
   <rect x="310" y="405" width="200" height="55" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)"/>
   <text x="410" y="426" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">🛡️ assertGarbagePhoto()</text>
-  <text x="410" y="442" text-anchor="middle" fill="#94a3b8" font-size="9">Face detection rejection</text>
-  <text x="410" y="454" text-anchor="middle" fill="#94a3b8" font-size="9">Landscape + garbage check</text>
+  <text x="410" y="442" text-anchor="middle" fill="#94a3b8" font-size="9">Blank / plain photo rejection</text>
+  <text x="410" y="454" text-anchor="middle" fill="#94a3b8" font-size="9">edge + texture + color check</text>
 
   <line x1="510" y1="432" x2="570" y2="432" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowW)"/>
 
@@ -211,11 +211,11 @@
   <!-- SECTION: AI VERIFICATION -->
   <!-- ═══════════════════════════════════════════ -->
   <rect x="30" y="935" width="1140" height="230" rx="12" fill="rgba(255,255,255,0.02)" stroke="#1e293b" stroke-width="1"/>
-  <text x="50" y="958" fill="#22c55e" font-size="12" font-weight="700">④ AI VERIFICATION PIPELINE (Hybrid CV + Groq AI scoring)</text>
+  <text x="50" y="958" fill="#22c55e" font-size="12" font-weight="700">④ GARBAGE-PHOTO GATE (capture-time — separate from verification)</text>
 
   <rect x="50" y="975" width="180" height="50" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)"/>
   <text x="140" y="996" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">🔬 Local CV Scoring</text>
-  <text x="140" y="1012" text-anchor="middle" fill="#94a3b8" font-size="9">skinTone + landscape + garbage</text>
+  <text x="140" y="1012" text-anchor="middle" fill="#94a3b8" font-size="9">edge + texture + color</text>
 
   <line x1="230" y1="1000" x2="280" y2="1000" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowW)"/>
 
@@ -241,24 +241,50 @@
   <text x="905" y="993" fill="#4ade80" font-size="8" font-weight="600">YES</text>
 
   <rect x="930" y="975" width="200" height="50" rx="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="2" filter="url(#shadow)"/>
-  <text x="1030" y="996" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="800">✅ VERIFIED</text>
-  <text x="1030" y="1012" text-anchor="middle" fill="#94a3b8" font-size="9">Points awarded</text>
+  <text x="1030" y="996" text-anchor="middle" fill="#4ade80" font-size="12" font-weight="800">✅ PHOTO ACCEPTED</text>
+  <text x="1030" y="1012" text-anchor="middle" fill="#94a3b8" font-size="9">Continue upload (no points)</text>
 
   <!-- Rejected path -->
   <line x1="360" y1="1025" x2="360" y2="1065" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrowR)"/>
   <text x="375" y="1048" fill="#f87171" font-size="8">NO</text>
   <rect x="280" y="1065" width="160" height="35" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
-  <text x="360" y="1087" text-anchor="middle" fill="#f87171" font-size="10">❌ REJECTED</text>
+  <text x="360" y="1087" text-anchor="middle" fill="#f87171" font-size="10">❌ PHOTO REJECTED</text>
 
   <line x1="800" y1="1025" x2="800" y2="1065" stroke="#f87171" stroke-width="1.5" marker-end="url(#arrowR)"/>
   <text x="815" y="1048" fill="#f87171" font-size="8">NO</text>
   <rect x="720" y="1065" width="160" height="35" rx="8" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1"/>
-  <text x="800" y="1087" text-anchor="middle" fill="#f87171" font-size="10">❌ REJECTED</text>
+  <text x="800" y="1087" text-anchor="middle" fill="#f87171" font-size="10">❌ PHOTO REJECTED</text>
 
   <!-- Groq details -->
   <rect x="490" y="1040" width="180" height="40" rx="6" fill="rgba(239,68,68,0.05)" stroke="#1e293b" stroke-width="1"/>
   <text x="580" y="1057" text-anchor="middle" fill="#64748b" font-size="8">Sends public HTTP URL (not base64)</text>
   <text x="580" y="1070" text-anchor="middle" fill="#64748b" font-size="8">reasoning_effort: none · 20s timeout</text>
+
+  <!-- Verification pipeline: separate from the capture-time photo gate -->
+  <line x1="50" y1="1105" x2="1150" y2="1105" stroke="#1e293b" stroke-width="1"/>
+  <text x="50" y="1122" fill="#a78bfa" font-size="10" font-weight="700">④b VERIFICATION PIPELINE (after both photos — no points from the gate above)</text>
+
+  <rect x="50" y="1130" width="240" height="30" rx="6" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="170" y="1142" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="700">Local CV: ≥ 0.82 verified</text>
+  <text x="170" y="1153" text-anchor="middle" fill="#94a3b8" font-size="8">0.55–0.82 → AI (CV_AI_MIN)</text>
+
+  <line x1="290" y1="1145" x2="310" y2="1145" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowW)"/>
+
+  <rect x="310" y="1130" width="240" height="30" rx="6" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+  <text x="430" y="1142" text-anchor="middle" fill="#fbbf24" font-size="9" font-weight="700">GPS ≤ 300 m · time ≤ 72 h</text>
+  <text x="430" y="1153" text-anchor="middle" fill="#94a3b8" font-size="8">CV_GPS_MAX_M / CV_TIME_MAX_H</text>
+
+  <line x1="550" y1="1145" x2="570" y2="1145" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowW)"/>
+
+  <rect x="570" y="1130" width="240" height="30" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="1"/>
+  <text x="690" y="1142" text-anchor="middle" fill="#f87171" font-size="9" font-weight="700">Groq AI verdict (middle band)</text>
+  <text x="690" y="1153" text-anchor="middle" fill="#94a3b8" font-size="8">below 0.55 → flagged for admin</text>
+
+  <line x1="810" y1="1145" x2="830" y2="1145" stroke="#4ade80" stroke-width="1.5" marker-end="url(#arrowG)"/>
+
+  <rect x="830" y="1130" width="300" height="30" rx="6" fill="rgba(34,197,94,0.12)" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="980" y="1142" text-anchor="middle" fill="#4ade80" font-size="9" font-weight="700">✅ VERIFIED → Resident +20 · Collector +10</text>
+  <text x="980" y="1153" text-anchor="middle" fill="#94a3b8" font-size="8">otherwise FLAGGED for admin review</text>
 
   <!-- ═══════════════════════════════════════════ -->
   <!-- SECTION: POINTS -->
@@ -291,7 +317,7 @@
   <rect x="820" y="1215" width="320" height="55" rx="8" fill="rgba(139,92,246,0.08)" stroke="#8b5cf6" stroke-width="1.5" filter="url(#shadow)"/>
   <text x="980" y="1236" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">⚙️ addPoints()</text>
   <text x="980" y="1252" text-anchor="middle" fill="#94a3b8" font-size="9">UPDATE profiles.points (realtime fires AFTER)</text>
-  <text x="980" y="1264" text-anchor="middle" fill="#94a3b8" font-size="9">→ INSERT points_transactions → return newBalance</text>
+  <text x="980" y="1264" text-anchor="middle" fill="#94a3b8" font-size="9">→ INSERT points_transactions (user_id, delta, reason, source_type)</text>
 
   <line x1="705" y1="1290" x2="820" y2="1243" stroke="#8b5cf6" stroke-width="1" marker-end="url(#arrowW)" stroke-dasharray="4,3"/>
 
@@ -341,7 +367,7 @@
 
   <rect x="240" y="1515" width="170" height="50" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
   <text x="325" y="1536" text-anchor="middle" fill="#fbbf24" font-size="10" font-weight="700">🔄 Override Collection</text>
-  <text x="325" y="1552" text-anchor="middle" fill="#94a3b8" font-size="9">POST /admin/collections/:id</text>
+  <text x="325" y="1552" text-anchor="middle" fill="#94a3b8" font-size="9">POST /api/admin/collections/:id/override</text>
 
   <rect x="430" y="1515" width="170" height="50" rx="8" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1.5"/>
   <text x="515" y="1536" text-anchor="middle" fill="#4ade80" font-size="10" font-weight="700">✅ Verify Reports</text>

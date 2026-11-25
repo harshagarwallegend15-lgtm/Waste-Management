@@ -72,12 +72,22 @@ router.get('/quiz', authRequired, roleGuard('resident'), async (req, res) => {
       return res.json({ canPlay: false, message: 'You have already played today. Come back tomorrow!' });
     }
 
-    const picked = shuffle(QUESTIONS.map((q, qi) => ({ ...q, qi }))).slice(0, QUESTIONS_PER_QUIZ);
-    const questions = picked.map((q, i) => ({
+    // Persist the bank indices at issuance time: grading must never trust an
+    // index supplied by the client. Only positional ids (0..n-1) go out.
+    const picked = shuffle(QUESTIONS.map((_, qi) => qi)).slice(0, QUESTIONS_PER_QUIZ);
+    const { error: insErr } = await db.from('learn_earn_sessions').insert({
+      user_id: userId,
+      score: 0,
+      total: picked.length,
+      points_earned: 0,
+      question_ids: picked,
+    });
+    if (insErr) throw insErr;
+
+    const questions = picked.map((qi, i) => ({
       id: i,
-      qi: q.qi,
-      question: q.q,
-      options: q.options,
+      question: QUESTIONS[qi].q,
+      options: QUESTIONS[qi].options,
     }));
 
     return res.json({ canPlay: true, questions, pointsPerCorrect: POINTS_PER_CORRECT });
@@ -102,41 +112,78 @@ router.post('/submit', authRequired, roleGuard('resident'), async (req, res) => 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const { count } = await db
+    // The quiz session issued today owns the question order and the answer key.
+    const { data: session, error: sErr } = await db
       .from('learn_earn_sessions')
-      .select('id', { count: 'exact', head: true })
+      .select('id, question_ids, score, total, points_earned, submitted')
       .eq('user_id', userId)
-      .gte('created_at', today.toISOString());
+      .gte('created_at', today.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sErr) throw sErr;
+    if (!session || !Array.isArray(session.question_ids) || !session.question_ids.length) {
+      return res.status(400).json({ error: 'Start today\'s quiz first' });
+    }
 
-    if (count > 0) {
+    const questionIds = session.question_ids;
+    const validShape = answers.every(
+      (a) => a && Number.isInteger(a.id) && a.id >= 0 && a.id < questionIds.length &&
+        Number.isInteger(a.selected) && a.selected >= 0 && a.selected <= 3
+    );
+    const ids = answers.map((a) => a && a.id);
+    if (!validShape || answers.length !== questionIds.length || new Set(ids).size !== answers.length) {
+      return res.status(400).json({ error: 'Invalid or duplicate answers' });
+    }
+
+    // One play per day: a submitted session cannot be replayed, even when the
+    // first attempt scored zero.
+    if (session.submitted === true) {
       return res.status(400).json({ error: 'You have already played today' });
     }
 
+    // Grade strictly against the stored bank indices, never client-supplied ones.
+    const selectedById = new Map(answers.map((a) => [a.id, a.selected]));
     let score = 0;
-    const results = answers.map((a) => {
-      const q = QUESTIONS[a.qi ?? a.id];
-      if (!q) return { id: a.id, correct: false };
-      const isCorrect = a.selected === q.correct;
+    const results = questionIds.map((qi, id) => {
+      const q = QUESTIONS[qi];
+      const isCorrect = !!q && selectedById.get(id) === q.correct;
       if (isCorrect) score++;
-      return { id: a.id, correct: isCorrect, correctAnswer: q.correct };
+      return { id, correct: isCorrect, correctAnswer: q ? q.correct : null };
     });
 
+    const total = questionIds.length;
     const pointsEarned = score * POINTS_PER_CORRECT;
 
-    const { data: session, error: insErr } = await db
+    const { data: updated, error: uErr } = await db
       .from('learn_earn_sessions')
-      .insert({ user_id: userId, score, total: QUESTIONS_PER_QUIZ, points_earned: pointsEarned })
+      .update({ score, total, points_earned: pointsEarned, submitted: true })
+      .eq('id', session.id)
+      .eq('submitted', false)
       .select('id')
-      .single();
+      .maybeSingle();
+    if (uErr) throw uErr;
+    if (!updated) return res.status(400).json({ error: 'You have already played today' });
 
-    if (insErr) throw insErr;
-
+    let newBalance = null;
     if (pointsEarned > 0) {
-      const ptResult = await addPoints(userId, pointsEarned, `Quiz: ${score}/${QUESTIONS_PER_QUIZ} correct`, 'learn_earn', session.id);
-      if (!ptResult) console.error('Learn & Earn: addPoints returned null for user', userId);
+      const ptResult = await addPoints(userId, pointsEarned, `Quiz: ${score}/${total} correct`, 'education', session.id);
+      if (!ptResult) {
+        console.error('Learn & Earn: addPoints returned null for user', userId);
+      } else if (Number.isFinite(Number(ptResult.newPoints))) {
+        newBalance = Number(ptResult.newPoints);
+      }
+    }
+    if (newBalance == null) {
+      try {
+        const { data: profile } = await db.from('profiles').select('points').eq('id', userId).single();
+        newBalance = profile?.points ?? req.profile?.points ?? 0;
+      } catch {
+        newBalance = req.profile?.points ?? 0;
+      }
     }
 
-    return res.json({ score, total: QUESTIONS_PER_QUIZ, pointsEarned, results, newBalance: (req.profile.points || 0) + pointsEarned });
+    return res.json({ score, total, pointsEarned, results, newBalance });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -189,16 +236,16 @@ router.get('/stats', authRequired, roleGuard('admin'), async (req, res) => {
   try {
     const { data: all, error } = await db
       .from('learn_earn_sessions')
-      .select('score, total, points_earned');
+      .select('user_id, score, total, points_earned');
 
     if (error) throw error;
     const sessions = all || [];
     const totalSessions = sessions.length;
-    const totalPlayers = new Set(sessions.map((s) => s.points_earned > 0)).size;
+    const totalPlayers = new Set(sessions.map((s) => s.user_id)).size;
     const avgScore = sessions.length ? (sessions.reduce((a, s) => a + s.score, 0) / sessions.length).toFixed(1) : 0;
     const totalPointsAwarded = sessions.reduce((a, s) => a + s.points_earned, 0);
 
-    return res.json({ totalSessions, avgScore, totalPointsAwarded });
+    return res.json({ totalSessions, totalPlayers, avgScore, totalPointsAwarded });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

@@ -179,15 +179,16 @@ router.post(
       if (request.status !== 'pending' && request.status !== 'collected') {
         return res.status(409).json({ error: `Request is already ${request.status}` });
       }
-      // Area check: direct match OR society-based match for null-area requests
-      let areaMatch = request.area_id === req.profile.area_id;
-      if (!areaMatch && !request.area_id && request.society_id) {
+      // Area check: direct match OR society-based match for null-area requests.
+      // Both sides must actually have an area — null === null is not a match.
+      let areaMatch = request.area_id != null && request.area_id === req.profile.area_id;
+      if (!areaMatch && request.area_id == null && request.society_id && req.profile.area_id != null) {
         const { data: society } = await db
           .from('societies')
           .select('area_id')
           .eq('id', request.society_id)
           .single();
-        areaMatch = society?.area_id === req.profile.area_id;
+        areaMatch = society?.area_id != null && society.area_id === req.profile.area_id;
       }
       if (!areaMatch) {
         return res.status(403).json({ error: 'This request is not in your assigned area' });
@@ -198,8 +199,11 @@ router.post(
       const afterUrl = await uploadPhoto(PHOTO_BUCKET, `requests/${request.resident_id}`, req.file.originalname || 'after.jpg', req.file.buffer, req.file.mimetype);
       if (!afterUrl) return res.status(500).json({ error: 'After-photo upload failed' });
 
-      // Record collected state first
-      const { data: collected, error: uErr } = await db
+      // Atomic pending → collected transition. A request already claimed by
+      // another collector cannot be completed twice; 'collected' is an
+      // in-progress retry and never re-awards points.
+      const wasPending = request.status === 'pending';
+      let transition = db
         .from('collection_requests')
         .update({
           status: 'collected',
@@ -210,20 +214,23 @@ router.post(
           after_timestamp: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
-        .eq('id', request.id)
-        .select()
-        .single();
+        .eq('id', request.id);
+      transition = wasPending
+        ? transition.eq('status', 'pending')
+        : transition.eq('status', 'collected');
+      const { data: collected, error: uErr } = await transition.select().single();
       if (uErr) return res.status(400).json({ error: uErr.message });
+      if (!collected) return res.status(409).json({ error: 'Request is no longer available for collection' });
 
       // Run hybrid CV verification
       const verification = await verifyCollection(collected, req.file.buffer);
 
-      // Award points only on verified
+      // Award points only on a first-time verified collection
       let points = null;
       if (verification.verdict === 'verified') {
-        points = await awardCollectionPoints(collected);
-        recomputeSocietyScore(collected.society_id).catch(() => {});
-        checkChallengeCompletions(collected.society_id).catch(() => {});
+        if (wasPending) points = await awardCollectionPoints(collected);
+        await recomputeSocietyScore(collected.society_id).catch((e) => console.error('[requests] score recompute failed:', e.message));
+        await checkChallengeCompletions(collected.society_id).catch((e) => console.error('[requests] challenge check failed:', e.message));
       }
 
       return res.json({ verification, points, collected_id: collected.id });

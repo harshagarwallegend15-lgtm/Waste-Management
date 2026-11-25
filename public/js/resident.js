@@ -139,8 +139,8 @@ async function loadHistory() {
             <td>${WW.fmtDate(r.before_timestamp)}</td>
             <td>${WW.escapeHtml(r.waste_type)}</td>
             <td class="photo-pair">
-              ${r.before_photo_url ? `<img class="photo-thumb" src="${r.before_photo_url}" />` : '<span class="muted">—</span>'}
-              ${r.after_photo_url ? `<img class="photo-thumb" src="${r.after_photo_url}" />` : ''}
+              ${r.before_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(r.before_photo_url)}" />` : '<span class="muted">—</span>'}
+              ${r.after_photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(r.after_photo_url)}" />` : ''}
             </td>
             <td>${WW.badge(r.status)}</td>
             <td>${r.match_score != null ? (r.match_score * 100).toFixed(0) + '%' : '—'}</td>
@@ -256,7 +256,7 @@ async function loadProblems() {
         <div style="display:flex; align-items:center; gap:10px;">
           <h4 style="flex:1;">${WW.escapeHtml(p.title)}</h4> ${WW.badge(p.status)}
         </div>
-        ${p.photo_url ? `<img class="photo-thumb" src="${p.photo_url}" style="margin:8px 0;" />` : ''}
+        ${p.photo_url ? `<img class="photo-thumb" src="${WW.escapeHtml(p.photo_url)}" style="margin:8px 0;" />` : ''}
         ${p.description ? `<p class="muted">${WW.escapeHtml(p.description)}</p>` : ''}
         <p class="hint" style="margin:6px 0;">${t('res.postedBy')} ${WW.escapeHtml(p.profiles?.name || t('res.resident'))} · ${WW.fmtDate(p.created_at)}</p>
         <div style="margin-top:8px;">
@@ -267,8 +267,8 @@ async function loadProblems() {
               <div style="font-size:0.9rem;">${WW.escapeHtml(c.content)}</div>
             </div>`).join('')}
           <div style="display:flex; gap:8px; margin-top:8px;">
-            <input id="cmt-${p.id}" placeholder="${t('res.addComment')}" onkeydown="if(event.key==='Enter')commentOn('${p.id}', this)" />
-            <button class="secondary" onclick="commentOn('${p.id}', document.getElementById('cmt-${p.id}'))">${t('res.commentBtn')}</button>
+            <input id="cmt-${p.id}" placeholder="${t('res.addComment')}" onkeydown="if(event.key==='Enter')commentOn('${WW.escapeHtml(p.id)}', this)" />
+            <button class="secondary" onclick="commentOn('${WW.escapeHtml(p.id)}', document.getElementById('cmt-${WW.escapeHtml(p.id)}'))">${t('res.commentBtn')}</button>
           </div>
         </div>
       </div>`).join('');
@@ -484,7 +484,7 @@ function renderSocietyList(list, region) {
           ${scoreBadge(s.score)}
           ${isMine
             ? ''
-            : `<button class="secondary switch-btn" onclick="switchSociety('${s.id}')">${t('res.joined')}</button>`}
+            : `<button class="secondary switch-btn" onclick="switchSociety('${WW.escapeHtml(s.id)}')">${t('res.joined')}</button>`}
         </div>
       </div>
       ${societyStats(s)}
@@ -526,7 +526,7 @@ async function initQuiz() {
           <div class="quiz-body">
             <div class="quiz-start-wrap">
               <div class="quiz-start-icon">🕐</div>
-              <p class="quiz-start-title">${data.message}</p>
+              <p class="quiz-start-title">${WW.escapeHtml(data.message)}</p>
               <p class="quiz-start-desc">Come back tomorrow for a fresh set of questions.<br>Max 50 points per day from quizzes.</p>
             </div>
           </div>

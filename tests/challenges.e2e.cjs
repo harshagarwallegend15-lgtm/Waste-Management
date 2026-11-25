@@ -1,8 +1,24 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
+const missingEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((k) => !process.env[k]);
+if (missingEnv.length) {
+  console.error('Missing required environment variable(s): ' + missingEnv.join(', '));
+  console.error('Copy .env.example to .env and set your Supabase URL + service-role key, then start the server `npm run dev` before running this E2E test.');
+  process.exit(1);
+}
+
 const { createClient } = require('@supabase/supabase-js');
 const sharp = require('sharp');
 
 const SUPA = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+const failures = [];
+function check(label, ok) {
+  console.log('  ' + (ok ? '✅' : '❌') + ' ' + label);
+  if (!ok) failures.push(label);
+}
+function score(cv) {
+  return typeof cv === 'number' ? (cv * 100).toFixed(0) + '%' : 'n/a';
+}
 
 async function login(email, password) {
   const { data, error } = await SUPA.auth.signInWithPassword({ email, password });
@@ -44,7 +60,7 @@ async function poll(apiCall, predicate, label, timeoutMs = 8000) {
   console.log('=== Challenges E2E ===\n');
   const adminTok = await login('admin@wastewise.app', 'Admin@123');
   const resTok = await login('resident@wastewise.app', 'Resident@123');
-  const colTok = await login('collector@wastewise.app', 'Collector@123');
+  const colTok = await login('collector1@wastewise.app', 'Collector@123');
 
   // 0. Capture the resident's balance before
   const before = await api(resTok, 'GET', '/api/points/me');
@@ -72,7 +88,8 @@ async function poll(apiCall, predicate, label, timeoutMs = 8000) {
   f2.append('photo', (await photo(WASTE, '#444')).blob, 'after.jpg');
   f2.append('gps_lat', '28.6152'); f2.append('gps_lng', '77.2102');
   const { verification } = await api(colTok, 'POST', `/api/requests/${request.id}/complete`, f2);
-  console.log('2. Verification:', verification.verdict, `(${(verification.cv_score * 100).toFixed(0)}%)`, verification.verdict === 'verified' ? '✅' : '⚠️');
+  console.log('2. Verification:', verification.verdict, `(${score(verification.cv_score)})`);
+  check('verification verdict is verified', verification.verdict === 'verified');
 
   // 3. Bonus is paid asynchronously — poll until it lands
   const after = await poll(
@@ -80,13 +97,15 @@ async function poll(apiCall, predicate, label, timeoutMs = 8000) {
     (r) => r.points >= startPoints + 20 + 30,
     'challenge bonus'
   );
-  console.log('3. Resident points:', startPoints, '→', after.points, '(+20 collection, +30 bonus):', after.points >= startPoints + 50 ? '✅' : '⚠️');
+  console.log('3. Resident points:', startPoints, '→', after.points, '(+20 collection, +30 bonus)');
+  check('collection + challenge bonus points awarded', after.points >= startPoints + 50);
 
   // 4. Resident view: challenge must show completed with progress 1/1
   const list = await api(resTok, 'GET', '/api/challenges');
   const mine = list.active.find((c) => c.id === challenge.id) || list.history.find((c) => c.id === challenge.id);
   const row = mine?.progress_rows?.find((r) => r.society_id === societyId);
-  console.log('4. Challenge completed for society:', row?.completed, '| progress:', row?.progress + '/' + row?.target, row?.completed && row?.progress >= 1 ? '✅' : '⚠️');
+  console.log('4. Challenge completed for society:', row?.completed, '| progress:', row ? row.progress + '/' + row.target : 'n/a');
+  check('challenge completed for resident society', Boolean(row?.completed && row?.progress >= 1));
 
   // 5. Second verified collection must NOT double-pay the bonus
   const p1 = after.points;
@@ -107,13 +126,18 @@ async function poll(apiCall, predicate, label, timeoutMs = 8000) {
   await new Promise((res) => setTimeout(res, 1200));
   const final = await api(resTok, 'GET', '/api/points/me');
   const noDouble = final.points === p1 + 20;
-  console.log('5. No double bonus:', p1, '→', final.points, '(expected +20 only)', noDouble ? '✅' : '⚠️');
+  console.log('5. No double bonus:', p1, '→', final.points, '(expected +20 only)');
+  check('second collection did not re-pay the bonus', noDouble);
 
   // 6. Admin closes the challenge → moves to history
   await api(adminTok, 'PATCH', `/api/challenges/${challenge.id}`, { status: 'cancelled' });
   const list2 = await api(resTok, 'GET', '/api/challenges');
   const inHistory = list2.history.some((c) => c.id === challenge.id);
-  console.log('6. Closed challenge in history:', inHistory ? '✅' : '⚠️');
+  check('closed challenge appears in history', inHistory);
 
+  if (failures.length) {
+    console.error('\nCHALLENGES FAILED (' + failures.length + ' check(s)):\n- ' + failures.join('\n- '));
+    process.exit(1);
+  }
   console.log('\n=== CHALLENGES PASSED ===');
 })().catch((e) => { console.error('\nCHALLENGES FAILED:', e.message); process.exit(1); });
